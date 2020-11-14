@@ -1,0 +1,47 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: php-actions/composer@v4
+      - name: Upload build for test runner
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-artifact
+          path: ./
+
+  phpunit:
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: build-artifact
+          path: ./
+
+      - name: PHP Unit tests
+        uses: php-actions/phpunit@v1
+        with:
+          bootstrap: vendor/autoload.php
+          configuration: test/phpunit/phpunit.xml
+
+  phpstan:
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: build-artifact
+          path: ./
+
+      - name: PHP Static Analysis
+        uses: php-actions/phpstan@v1
+        with:
+          path: src/
