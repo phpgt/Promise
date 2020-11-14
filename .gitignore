@@ -1,0 +1,4 @@
+/vendor
+/test/phpunit/_coverage
+.phpunit.result.cache
+/example.*
