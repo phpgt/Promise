@@ -102,4 +102,7 @@ Event loop
 
 In order for this Promise library to be useful, some code has got to act as an event loop to call the deferred processes. This could be a simple while loop, but for real world tasks a more comprehensive loop system should be used.
 
-The implementation of a Promise-based architecture is complex enough on its own, so the responsibility of an event loop library is maintained separately in PHP.Gt/Async. 
+The implementation of a Promise-based architecture is complex enough on its own, so the responsibility of an event loop library is maintained separately in [PHP.Gt/Async][gt-async].
+
+[mdn-promise]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
+[gt-async]: https://php.gt/async 
