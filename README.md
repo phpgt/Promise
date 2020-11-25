@@ -104,5 +104,12 @@ In order for this Promise library to be useful, some code has got to act as an e
 
 The implementation of a Promise-based architecture is complex enough on its own, so the responsibility of an event loop library is maintained separately in [PHP.Gt/Async][gt-async].
 
+Special thanks
+--------------
+
+The work put into the development of this repository is mainly thanks to the great work and inspiration given by [reactphp's promise implementation][reactphp-promise] and [the superb writing of Domenic Denicola][domenic-denicola-blog].
+
 [mdn-promise]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [gt-async]: https://php.gt/async 
+[reactphp-promise]: https://github.com/reactphp/promise
+[domenic-denicola-blog]: https://blog.domenic.me/youre-missing-the-point-of-promises/
