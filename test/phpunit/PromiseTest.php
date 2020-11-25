@@ -60,14 +60,14 @@ class PromiseTest extends TestCase {
 		$sut = $promiseContainer->getPromise();
 		$sut->then(
 			self::mockCallable(0),
-			function(LogicException $reason) use(&$actualMessage) {
+			function(PromiseException $reason) use(&$actualMessage) {
 				$actualMessage = $reason->getMessage();
 			}
 		);
 
 		$promiseContainer->resolve($sut);
 		self::assertEquals(
-			"Cannot resolve a promise with itself.",
+			"A Promise must be settled with a concrete value, not another Promise.",
 			$actualMessage
 		);
 	}
@@ -288,57 +288,60 @@ class PromiseTest extends TestCase {
 		);
 	}
 
-	public function testDoneResolvesOnFulfilledCallback() {
+	public function testCompleteResolvesOnFulfilledCallback() {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$sut = $promiseContainer->getPromise();
 		$expectedValue = "expected value";
-		$sut->done(
+		$sut->complete(
 			self::mockCallable(1, $expectedValue)
 		);
 
 		$promiseContainer->resolve($expectedValue);
 	}
 
-	public function testDoneCallsOnFulfilledForPreResolvedPromise() {
+	public function testCompleteCallsOnFulfilledForPreResolvedPromise() {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$promiseContainer->resolve("example");
 		$sut = $promiseContainer->getPromise();
 
-		$onFulfilled = self::mockCallable(1);
-		$sut->done($onFulfilled);
+		$onFulfilled = self::mockCallable(
+			1,
+			"example"
+		);
+		$sut->complete($onFulfilled);
 	}
 
-	public function testDoneCallsOnRejectedForRejectedPromise() {
-		$exception = new Exception("Done but rejected");
+	public function testCompleteCallsOnRejectedForRejectedPromise() {
+		$exception = new Exception("Completed but rejected");
 		$promiseContainer = $this->getTestPromiseContainer();
 		$promiseContainer->reject($exception);
 		$sut = $promiseContainer->getPromise();
-		$sut->then(
+		$sut->complete(
 			null,
 			self::mockCallable(1, $exception)
 		);
 	}
 
-	public function testDoneThrowsExceptionWithNoHandler() {
+	public function testCompleteThrowsExceptionWithNoHandler() {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$promiseContainer->resolve("example");
 		$sut = $promiseContainer->getPromise();
 
 		self::expectException(PromiseException::class);
 
-		$sut->done(function() {
+		$sut->complete(function() {
 			throw new PromiseException("This is not handled");
 		});
 	}
 
-	public function testDoneThrowsExceptionWithNoRejectionHandler() {
+	public function testCompleteThrowsExceptionWithNoRejectionHandler() {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$promiseContainer->reject(new Exception());
 		$sut = $promiseContainer->getPromise();
 
 		self::expectException(PromiseException::class);
 
-		$sut->done(
+		$sut->complete(
 			null,
 			function() {
 				throw new PromiseException("This is not handled");
@@ -346,16 +349,16 @@ class PromiseTest extends TestCase {
 		);
 	}
 
-	public function testDoneThrowsExceptionWithoutOnFulfilledOnRejectedHandlers() {
+	public function testCompleteThrowsExceptionWithoutOnFulfilledOnRejectedHandlers() {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$rejectionMessage = "Example rejection message";
 		$promiseContainer->reject(new Exception($rejectionMessage));
 		$sut = $promiseContainer->getPromise();
 		self::expectExceptionMessage($rejectionMessage);
-		$sut->done(/* pass no fulfil/reject handler */);
+		$sut->complete(/* pass no fulfil/reject handler */);
 	}
 
-	public function testDoneShouldNotContinueThrowingWhenExceptionCaught() {
+	public function testCompleteShouldNotContinueThrowingWhenExceptionCaught() {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$promiseContainer->reject(new Exception());
 
@@ -363,7 +366,7 @@ class PromiseTest extends TestCase {
 		$exception = null;
 
 		try {
-			$sut->done(
+			$sut->complete(
 				null,
 				function(Throwable $reason) {
 // Do nothing, essentially "catching" the exception.
