@@ -29,14 +29,14 @@ class TestPromiseContainer {
 	}
 
 	public function resolve(...$args):?PromiseInterface {
-		return call_user_func_array($this->resolve, func_get_args());
+		return call_user_func($this->resolve, ...$args);
 	}
 
 	public function reject(...$args):?PromiseInterface {
-		return call_user_func_array($this->reject, func_get_args());
+		return call_user_func($this->reject, ...$args);
 	}
 
 	public function settle(...$args):?PromiseInterface {
-		return call_user_func_array($this->settle, func_get_args());
+		return call_user_func($this->settle, ...$args);
 	}
 }
