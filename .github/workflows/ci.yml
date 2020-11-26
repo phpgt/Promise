@@ -8,7 +8,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: php-actions/composer@v4
+
+      - uses: php-actions/composer@dynamic-docker
+
       - name: Upload build for test runner
         uses: actions/upload-artifact@v2
         with:
@@ -26,7 +28,7 @@ jobs:
           path: ./
 
       - name: PHP Unit tests
-        uses: php-actions/phpunit@v1
+        uses: php-actions/phpunit@dynamic-docker
         with:
           bootstrap: vendor/autoload.php
           configuration: test/phpunit/phpunit.xml
@@ -42,6 +44,6 @@ jobs:
           path: ./
 
       - name: PHP Static Analysis
-        uses: php-actions/phpstan@v1
+        uses: php-actions/phpstan@dynamic-docker
         with:
           path: src/
