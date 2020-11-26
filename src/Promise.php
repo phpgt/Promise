@@ -35,7 +35,7 @@ class Promise implements PromiseInterface {
 			);
 		}
 
-		return new static($this->resolver($onFulfilled, $onRejected));
+		return new self($this->resolver($onFulfilled, $onRejected));
 	}
 
 	public function catch(
