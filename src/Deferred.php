@@ -30,7 +30,7 @@ class Deferred implements DeferredInterface {
 		}
 	}
 
-	public function getPromise():PromiseInterface {
+	public function getPromise():Promise {
 		return $this->promise;
 	}
 
