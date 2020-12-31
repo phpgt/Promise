@@ -10,6 +10,7 @@ class FulfilledPromise implements PromiseInterface {
 
 	/** @var mixed */
 	private $value;
+	private string $state;
 
 	/** @param ?mixed $promiseOrValue */
 	public function __construct($promiseOrValue = null) {

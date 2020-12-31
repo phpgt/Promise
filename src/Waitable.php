@@ -22,7 +22,7 @@ trait Waitable {
 
 		/** @var PromiseInterface $promise */
 		$promise = $this;
-		if($unwrap) {
+		if($unwrap && $this instanceof Promise) {
 			$promise = $this->unwrap($promise);
 		}
 

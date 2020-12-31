@@ -9,6 +9,7 @@ class RejectedPromise implements PromiseInterface {
 	use Waitable;
 
 	private Throwable $reason;
+	private string $state;
 
 	public function __construct(Throwable $reason) {
 		$this->reason = $reason;
