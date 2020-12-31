@@ -6,6 +6,7 @@ use Http\Promise\Promise as HttpPromiseInterface;
 
 class RejectedPromise implements PromiseInterface {
 	use Resolvable;
+	use Waitable;
 
 	private Throwable $reason;
 
@@ -76,9 +77,5 @@ class RejectedPromise implements PromiseInterface {
 
 	public function getState():string {
 		return HttpPromiseInterface::REJECTED;
-	}
-
-	public function wait(bool $unwrap = true) {
-		// TODO: Implement wait() method.
 	}
 }

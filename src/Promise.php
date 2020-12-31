@@ -6,6 +6,7 @@ use Http\Promise\Promise as HttpPromiseInterface;
 
 class Promise implements PromiseInterface, HttpPromiseInterface {
 	use Resolvable;
+	use Waitable;
 
 	/** @var mixed */
 	private $result;
@@ -78,15 +79,6 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 
 	public function getState():string {
 		return $this->state;
-	}
-
-	public function wait($unwrap = true) {
-		$promise = $this;
-		if($unwrap) {
-			$promise = $this->unwrap($promise);
-		}
-
-		// TODO: Call passed-in function to perform waiting using loop.
 	}
 
 	private function resolver(

@@ -6,6 +6,7 @@ use Http\Promise\Promise as HttpPromiseInterface;
 
 class FulfilledPromise implements PromiseInterface {
 	use Resolvable;
+	use Waitable;
 
 	/** @var mixed */
 	private $value;
@@ -75,9 +76,5 @@ class FulfilledPromise implements PromiseInterface {
 
 	public function getState():string {
 		return HttpPromiseInterface::FULFILLED;
-	}
-
-	public function wait(bool $unwrap = true) {
-		// TODO: Implement wait() method.
 	}
 }
