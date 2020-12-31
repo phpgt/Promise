@@ -48,4 +48,17 @@ interface PromiseInterface {
 	public function finally(
 		callable $onFulfilledOrRejected
 	):PromiseInterface;
+
+	/**
+	 * TODO: Documentation.
+	 */
+	public function complete(
+		callable $onFulfilled = null,
+		callable $onRejected = null
+	):void;
+
+	public function getState():string;
+
+	/** @return mixed */
+	public function wait(bool $unwrap = true);
 }

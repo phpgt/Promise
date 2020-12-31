@@ -2,12 +2,15 @@
 namespace Gt\Promise;
 
 use Throwable;
+use Http\Promise\Promise as HttpPromiseInterface;
 
 class FulfilledPromise implements PromiseInterface {
 	use Resolvable;
+	use Waitable;
 
 	/** @var mixed */
 	private $value;
+	private string $state;
 
 	/** @param ?mixed $promiseOrValue */
 	public function __construct($promiseOrValue = null) {
@@ -70,5 +73,9 @@ class FulfilledPromise implements PromiseInterface {
 					});
 			}
 		);
+	}
+
+	public function getState():string {
+		return HttpPromiseInterface::FULFILLED;
 	}
 }
