@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use RangeException;
 use stdClass;
 use Throwable;
+use Http\Promise\Promise as HttpPromiseInterface;
 
 class PromiseTest extends TestCase {
 	public function testOnFulfilledResolvesCorrectValue() {
@@ -499,6 +500,37 @@ class PromiseTest extends TestCase {
 		})->then(
 			self::mockCallable(0),
 			self::mockCallable(1, $exception)
+		);
+	}
+
+	public function testGetStatePending() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+		self::assertEquals(
+			HttpPromiseInterface::PENDING,
+			$sut->getState()
+		);
+	}
+
+	public function testGetStateFulfilled() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("Example resolution");
+		$sut = $promiseContainer->getPromise();
+
+		self::assertEquals(
+			HttpPromiseInterface::FULFILLED,
+			$sut->getState()
+		);
+	}
+
+	public function testGetStateRejected() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject(new Exception("Example rejection"));
+		$sut = $promiseContainer->getPromise();
+
+		self::assertEquals(
+			HttpPromiseInterface::REJECTED,
+			$sut->getState()
 		);
 	}
 

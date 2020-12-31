@@ -2,6 +2,7 @@
 namespace Gt\Promise;
 
 use Throwable;
+use Http\Promise\Promise as HttpPromiseInterface;
 
 class RejectedPromise implements PromiseInterface {
 	use Resolvable;
@@ -71,5 +72,13 @@ class RejectedPromise implements PromiseInterface {
 					});
 			}
 		);
+	}
+
+	public function getState():string {
+		return HttpPromiseInterface::REJECTED;
+	}
+
+	public function wait(bool $unwrap = true) {
+		// TODO: Implement wait() method.
 	}
 }

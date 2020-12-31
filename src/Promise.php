@@ -2,14 +2,16 @@
 namespace Gt\Promise;
 
 use Throwable;
+use Http\Promise\Promise as HttpPromiseInterface;
 
-class Promise implements PromiseInterface {
+class Promise implements PromiseInterface, HttpPromiseInterface {
 	use Resolvable;
 
 	/** @var mixed */
 	private $result;
 	/** @var callable[] */
 	private array $handlers;
+	private string $state;
 
 	/**
 	 * @param callable $executor A function to be executed by the
@@ -22,6 +24,7 @@ class Promise implements PromiseInterface {
 	public function __construct(callable $executor) {
 		$this->handlers = [];
 		$this->call($executor);
+		$this->state = HttpPromiseInterface::PENDING;
 	}
 
 	public function then(
@@ -73,6 +76,19 @@ class Promise implements PromiseInterface {
 		);
 	}
 
+	public function getState():string {
+		return $this->state;
+	}
+
+	public function wait($unwrap = true) {
+		$promise = $this;
+		if($unwrap) {
+			$promise = $this->unwrap($promise);
+		}
+
+		// TODO: Call passed-in function to perform waiting using loop.
+	}
+
 	private function resolver(
 		callable $onFulfilled = null,
 		callable $onRejected = null
@@ -94,6 +110,7 @@ class Promise implements PromiseInterface {
 			return;
 		}
 
+		$this->state = HttpPromiseInterface::REJECTED;
 		$this->settle(new RejectedPromise($reason));
 	}
 
