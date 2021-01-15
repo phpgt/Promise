@@ -27,7 +27,7 @@ interface DeferredInterface {
 	 * registered with the Promise's catch() function will be rejected
 	 * with this reason.
 	 */
-	public function reject(Throwable $reason);
+	public function reject(Throwable $reason):void;
 
 	/**
 	 * Assigns a callback as a task to perform to complete the deferred

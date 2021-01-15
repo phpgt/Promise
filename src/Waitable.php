@@ -15,12 +15,13 @@ trait Waitable {
 		$this->waitTask = $task;
 	}
 
-	public function wait($unwrap = true) {
+	/** @param bool $unwrap */
+	public function wait($unwrap = true):mixed {
 		if(!isset($this->waitTask)) {
-			throw new PromiseException("Promise::wait() is only possible when a wait task is set");
+			throw new PromiseWaitTaskNotSetException();
 		}
 
-		/** @var PromiseInterface $promise */
+		/** @var Promise $promise */
 		$promise = $this;
 		if($unwrap && $this instanceof Promise) {
 			$promise = $this->unwrap($promise);
@@ -29,5 +30,15 @@ trait Waitable {
 		while($promise->getState() === HttpPromiseInterface::PENDING) {
 			call_user_func($this->waitTask);
 		}
+
+		if($unwrap) {
+			$resolvedValue = null;
+			$promise->then(function(mixed $value) use(&$resolvedValue):void {
+				$resolvedValue = $value;
+			});
+			return $resolvedValue;
+		}
+
+		return null;
 	}
 }
