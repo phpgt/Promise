@@ -15,6 +15,7 @@ trait Waitable {
 		$this->waitTask = $task;
 	}
 
+	/** @param bool $unwrap */
 	public function wait($unwrap = true) {
 		if(!isset($this->waitTask)) {
 			throw new PromiseException("Promise::wait() is only possible when a wait task is set");
