@@ -534,6 +534,53 @@ class PromiseTest extends TestCase {
 		);
 	}
 
+	/**
+	 * This test is almost identical to the next one. Inside a try-catch
+	 * block, it executes a then-catch chain. It asserts that the catch
+	 * callback is provided the expected exception, and that the exception
+	 * does not bubble out and into the catch block.
+	 */
+	public function testCatchMethodNotBubblesThrowables() {
+		$expectedException = new Exception("Test exception");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("test");
+		$sut = $promiseContainer->getPromise();
+
+		$exception = null;
+		try {
+			$sut->then(function() use($expectedException) {
+				throw $expectedException;
+			})->catch(
+				self::mockCallable(1, $expectedException)
+			);
+		}
+		catch(Throwable $exception) {}
+
+		self::assertNull($exception);
+	}
+
+	/**
+	 * This test tests the opposite of the previous one: if there is no
+	 * catch function in the promise chain, an exception should bubble up
+	 * and be caught by the try-catch block.
+	 */
+	public function testNoCatchMethodBubblesThrowables() {
+		$expectedException = new Exception("Test exception");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("test");
+		$sut = $promiseContainer->getPromise();
+
+		$exception = null;
+		try {
+			$sut->then(function() use($expectedException) {
+				throw $expectedException;
+			});
+		}
+		catch(Throwable $exception) {}
+
+		self::assertSame($expectedException, $exception);
+	}
+
 	protected function getTestPromiseContainer():TestPromiseContainer {
 		$resolveCallback = null;
 		$rejectCallback = null;
