@@ -15,7 +15,7 @@ class FulfilledPromise implements PromiseInterface {
 	/** @param ?mixed $promiseOrValue */
 	public function __construct($promiseOrValue = null) {
 		if($promiseOrValue instanceof PromiseInterface) {
-			throw new PromiseException("A FulfilledPromise must be resolved with a concrete value, not a Promise.");
+			throw new FulfilledValueNotConcreteException(get_class($promiseOrValue));
 		}
 
 		$this->value = $promiseOrValue;
