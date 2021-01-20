@@ -128,6 +128,7 @@ class PromiseTest extends TestCase {
 
 		$promiseContainer->reject($exception);
 		$sut->complete();
+		self::assertEquals(0, $fulfilledCallCount);
 	}
 
 	/**
@@ -141,7 +142,7 @@ class PromiseTest extends TestCase {
 	 * @see https://codepen.io/g105b/pen/vYXPoGG?editors=0011
 	 */
 	public function testRejectIfFulfillerThrowsException() {
-		$exception = new Exception("another-test");
+		$exception = new Exception("Thrown from within onFulfilled!");
 		$promiseContainer = self::getTestPromiseContainer();
 		$promiseContainer->resolve("success");
 
@@ -290,12 +291,12 @@ class PromiseTest extends TestCase {
 			function($value) use(&$fulfilledCallCount) {
 				$fulfilledCallCount++;
 			},
-			fn() => null,
+			null,
 		)->then(
 			function($value) use(&$fulfilledCallCount) {
 				$fulfilledCallCount++;
 			},
-			fn() => null,
+		null,
 		)->then(
 			function($value) use(&$fulfilledCallCount) {
 				$fulfilledCallCount++;

@@ -27,10 +27,12 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		callable $onFulfilled = null,
 		callable $onRejected = null
 	):PromiseInterface {
-		array_push($this->thenQueue, new Then(
-			$onFulfilled,
-			$onRejected
-		));
+		if($onFulfilled || $onRejected) {
+			array_push($this->thenQueue, new Then(
+				$onFulfilled,
+				$onRejected
+			));
+		}
 
 		return $this;
 	}
@@ -57,13 +59,16 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 
 	public function handleThens():void {
 		$rejectedForwardQueue = [];
+		if(!is_null($this->rejection)) {
+			array_push(
+				$rejectedForwardQueue,
+				$this->rejection
+			);
+		}
 
-		foreach($this->thenQueue as $i => $then) {
+		while($then = array_shift($this->thenQueue)) {
 			try {
-				if($reason = $then->getRejection()
-				?? $this->rejection
-				?? array_pop($rejectedForwardQueue)
-				?? null) {
+				if($reason = array_shift($rejectedForwardQueue)) {
 					$rejectedResult = $then->callOnRejected($reason);
 					if($rejectedResult instanceof Throwable) {
 						array_push(
@@ -86,10 +91,10 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 			catch(Throwable $reason) {
 				array_push($rejectedForwardQueue, $reason);
 			}
+		}
 
-			while($reason = $then->getRejection()) {
-				array_push($rejectedForwardQueue, $reason);
-			}
+		if($reason = array_shift($rejectedForwardQueue)) {
+			throw $reason;
 		}
 	}
 
@@ -118,15 +123,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	/** @param mixed $value */
 	private function resolve($value):void {
 		if($value instanceof PromiseInterface) {
-			$reason = new PromiseResolvedWithAnotherPromiseException();
-
-			$this->rejection = $reason;
-//			if(empty($this->thenQueue)) {
-//			}
-//			else {
-//				$this->thenQueue[0]->addRejection($reason);
-//			}
-
+			$this->rejection = new PromiseResolvedWithAnotherPromiseException();
 			return;
 		}
 

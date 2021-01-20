@@ -8,8 +8,6 @@ class Then {
 	private $onFulfilled;
 	/** @var callable|null */
 	private $onRejected;
-	/** @var Throwable[] */
-	private array $rejectionList;
 
 	public function __construct(
 		?callable $onFulfilled,
@@ -17,7 +15,6 @@ class Then {
 	) {
 		$this->onFulfilled = $onFulfilled;
 		$this->onRejected = $onRejected;
-		$this->rejectionList = [];
 	}
 
 	/**
@@ -29,12 +26,7 @@ class Then {
 			return null;
 		}
 
-		try {
-			return call_user_func($this->onFulfilled, $value);
-		}
-		catch(Throwable $reason) {
-			array_push($this->rejectionList, $reason);
-		}
+		return call_user_func($this->onFulfilled, $value);
 	}
 
 	/**
@@ -46,13 +38,5 @@ class Then {
 		}
 
 		return call_user_func($this->onRejected, $reason);
-	}
-
-	public function addRejection(Throwable $reason):void {
-		array_push($this->rejectionList, $reason);
-	}
-
-	public function getRejection():?Throwable {
-		return array_pop($this->rejectionList);
 	}
 }
