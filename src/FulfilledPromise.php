@@ -32,12 +32,12 @@ class FulfilledPromise implements PromiseInterface {
 		return new Promise(
 			function(callable $resolve, callable $reject)
 			use ($onFulfilled):void {
-				try {
+//				try {
 					$resolve($onFulfilled($this->value));
-				}
-				catch(Throwable $reason) {
-					$reject($reason);
-				}
+//				}
+//				catch(Throwable $reason) {
+//					$reject($reason);
+//				}
 			}
 		);
 	}
