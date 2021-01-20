@@ -306,21 +306,28 @@ class PromiseTest extends TestCase {
 		self::assertEquals(0, $fulfilledCallCount);
 	}
 
-//	public function testThenProvidedResolvedValueAfterRejectionReturnsValue() {
-//		$message = "If a rejection returns a value, the next chained "
-//			. "promise should resolve with the value";
-//
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject(new Exception());
-//		$sut = $promiseContainer->getPromise();
-//		$sut->then(
-//			self::mockCallable(0),
-//			fn() => $message,
-//		)->then(
-//			self::mockCallable(1, $message),
-//			self::mockCallable(0)
-//		);
-//	}
+	/**
+	 * If a rejection returns a value, the next chained promise should
+	 * resolve with the value.
+	 * @see https://codepen.io/g105b/pen/LYRvpNJ?editors=0011
+	 */
+	public function testThenProvidedResolvedValueAfterRejectionReturnsValue() {
+		$message = "If a rejection returns a value, the next chained "
+			. "promise should resolve with the value";
+
+		$exception = new Exception("Test Exception!");
+
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+		$sut = $promiseContainer->getPromise();
+		$sut->then(
+			self::mockCallable(0),
+			fn() => $message,
+		)->then(
+			self::mockCallable(1, $message),
+			self::mockCallable(0)
+		)->complete();
+	}
 //
 //	public function testCompleteResolvesOnFulfilledCallback() {
 //		$promiseContainer = $this->getTestPromiseContainer();

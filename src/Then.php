@@ -38,16 +38,14 @@ class Then {
 	}
 
 	/**
-	 * @return Throwable|null Returns null if the Throwable is handled,
-	 * otherwise returns the Throwable back to the caller.
+	 * @return mixed|null New fulfilled value
 	 */
-	public function callOnRejected(Throwable $reason):?Throwable {
+	public function callOnRejected(Throwable $reason) {
 		if(is_null($this->onRejected)) {
 			return $reason;
 		}
 
-		call_user_func($this->onRejected, $reason);
-		return null;
+		return call_user_func($this->onRejected, $reason);
 	}
 
 	public function addRejection(Throwable $reason):void {

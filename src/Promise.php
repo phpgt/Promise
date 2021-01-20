@@ -61,15 +61,19 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		foreach($this->thenQueue as $i => $then) {
 			try {
 				if($reason = $then->getRejection()
-					?? $this->rejection
-					?? array_pop($rejectedForwardQueue)
-					?? null) {
-					$reasonForward = $then->callOnRejected($reason);
-					if($reasonForward) {
+				?? $this->rejection
+				?? array_pop($rejectedForwardQueue)
+				?? null) {
+					$rejectedResult = $then->callOnRejected($reason);
+					if($rejectedResult instanceof Throwable) {
 						array_push(
 							$rejectedForwardQueue,
-							$reasonForward
+							$rejectedResult
 						);
+					}
+					elseif(!is_null($rejectedResult)) {
+						$this->rejection = null;
+						$this->resolvedValue = $rejectedResult;
 					}
 				}
 				else {
