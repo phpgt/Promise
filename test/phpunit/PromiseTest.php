@@ -328,53 +328,57 @@ class PromiseTest extends TestCase {
 			self::mockCallable(0)
 		)->complete();
 	}
-//
-//	public function testCompleteResolvesOnFulfilledCallback() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$sut = $promiseContainer->getPromise();
-//		$expectedValue = "expected value";
-//		$sut->complete(
-//			self::mockCallable(1, $expectedValue)
-//		);
-//
-//		$promiseContainer->resolve($expectedValue);
-//	}
-//
-//	public function testCompleteCallsOnFulfilledForPreResolvedPromise() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->resolve("example");
-//		$sut = $promiseContainer->getPromise();
-//
-//		$onFulfilled = self::mockCallable(
-//			1,
-//			"example"
-//		);
-//		$sut->complete($onFulfilled);
-//	}
-//
-//	public function testCompleteCallsOnRejectedForRejectedPromise() {
-//		$exception = new Exception("Completed but rejected");
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject($exception);
-//		$sut = $promiseContainer->getPromise();
-//		$sut->complete(
-//			null,
-//			self::mockCallable(1, $exception)
-//		);
-//	}
-//
-//	public function testCompleteThrowsExceptionWithNoHandler() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->resolve("example");
-//		$sut = $promiseContainer->getPromise();
-//
-//		self::expectException(PromiseException::class);
-//
-//		$sut->complete(function() {
-//			throw new PromiseException("This is not handled");
-//		});
-//	}
-//
+
+	public function testCompleteResolvesOnFulfilledCallback() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+		$expectedValue = "expected value";
+		$promiseContainer->resolve($expectedValue);
+
+		$sut->complete(
+			self::mockCallable(1, $expectedValue)
+		);
+	}
+
+	public function testCompleteCallsOnFulfilledForPreResolvedPromise() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("example");
+		$sut = $promiseContainer->getPromise();
+
+		$onFulfilled = self::mockCallable(
+			1,
+			"example"
+		);
+		$sut->complete($onFulfilled);
+	}
+
+	public function testCompleteCallsOnRejectedForRejectedPromise() {
+		$exception = new Exception("Completed but rejected");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+		$sut = $promiseContainer->getPromise();
+		$sut->complete(
+			null,
+			self::mockCallable(1, $exception)
+		);
+	}
+
+	public function testCompleteThrowsExceptionWithNoHandler() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("example");
+		$sut = $promiseContainer->getPromise();
+
+		self::expectException(PromiseException::class);
+
+// TODO: Test is failing because the Then's rejection list needs to be bubbled.
+// This might be doable by removing the Then's internal rejection list and
+// simply throwing the rejection, catching it in the Promise's handleThens
+// function.
+		$sut->complete(function() {
+			throw new PromiseException("This is not handled");
+		});
+	}
+
 //	public function testCompleteThrowsExceptionWithNoRejectionHandler() {
 //		$promiseContainer = $this->getTestPromiseContainer();
 //		$promiseContainer->reject(new Exception());
