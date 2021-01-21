@@ -49,14 +49,6 @@ interface PromiseInterface {
 		callable $onFulfilledOrRejected
 	):PromiseInterface;
 
-	/**
-	 * TODO: Documentation.
-	 */
-	public function complete(
-		callable $onFulfilled = null,
-		callable $onRejected = null
-	):void;
-
 	public function getState():string;
 
 	/** @return mixed */
