@@ -126,6 +126,14 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 				}
 				else {
 					$value = $then->callOnFulfilled($this->resolvedValue);
+					if($value instanceof PromiseInterface) {
+						$value->then(function($resolvedValue) {
+							$this->resolvedValue = $resolvedValue;
+							$this->complete();
+						});
+						break;
+					}
+
 					$this->state = HttpPromiseInterface::FULFILLED;
 					if(!is_null($value)) {
 						$this->resolvedValue = $value;
