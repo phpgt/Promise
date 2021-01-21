@@ -397,13 +397,18 @@ class PromiseTest extends TestCase {
 		);
 	}
 
-	public function testCompleteThrowsExceptionWithoutOnFulfilledOnRejectedHandlers() {
+	public function testCompleteNotThrowsExceptionWithoutOnFulfilledOnRejectedHandlers() {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$rejectionMessage = "Example rejection message";
 		$promiseContainer->reject(new Exception($rejectionMessage));
 		$sut = $promiseContainer->getPromise();
-		self::expectExceptionMessage($rejectionMessage);
-		$sut->complete(/* pass no fulfil/reject handler */);
+
+		$reason = null;
+		try {
+			$sut->complete(/* pass no fulfil/reject handler */);
+		}
+		catch(Throwable $reason) {}
+		self::assertNull($reason);
 	}
 
 	public function testCompleteShouldNotContinueThrowingWhenExceptionCaught() {
@@ -536,138 +541,145 @@ class PromiseTest extends TestCase {
 		->complete();
 	}
 
-//	public function testFinallyDoesNotBlockOnRejected() {
-//		$exception = new Exception();
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject($exception);
-//		$sut = $promiseContainer->getPromise();
-//		$sut->finally(function() {})
-//			->then(
-//				null,
-//				self::mockCallable(1, $exception),
-//			);
-//	}
-//
-//	public function testFinallyDoesNotBlockOnRejectedWhenReturnsScalar() {
-//		$exception = new Exception();
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject($exception);
-//		$sut = $promiseContainer->getPromise();
-//		$sut->finally(function() {
-//			return "Arbitrary scalar value";
-//		})->then(
-//			null,
-//			self::mockCallable(1, $exception),
-//		);
-//	}
-//
-//	public function testFinallyPassesThrownException() {
-//		$exception1 = new Exception("First");
-//		$exception2 = new Exception("Second");
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject($exception1);
-//
-//		$sut = $promiseContainer->getPromise();
-//		$sut->finally(function() use($exception2) {
-//			throw $exception2;
-//		})->then(
-//			self::mockCallable(0),
-//			self::mockCallable(1, $exception2),
-//		);
-//	}
-//
-//	public function testOnRejectedCalledWhenFinallyThrows() {
-//		$exception = new PromiseException("Oh dear, oh dear");
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->resolve("Example resolution");
-//
-//		$sut = $promiseContainer->getPromise();
-//		$sut->finally(function() use($exception) {
-//			throw $exception;
-//		})->then(
-//			self::mockCallable(0),
-//			self::mockCallable(1, $exception)
-//		);
-//	}
-//
-//	public function testGetStatePending() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$sut = $promiseContainer->getPromise();
-//		self::assertEquals(
-//			HttpPromiseInterface::PENDING,
-//			$sut->getState()
-//		);
-//	}
-//
-//	public function testGetStateFulfilled() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->resolve("Example resolution");
-//		$sut = $promiseContainer->getPromise();
-//
-//		self::assertEquals(
-//			HttpPromiseInterface::FULFILLED,
-//			$sut->getState()
-//		);
-//	}
-//
-//	public function testGetStateRejected() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject(new Exception("Example rejection"));
-//		$sut = $promiseContainer->getPromise();
-//
-//		self::assertEquals(
-//			HttpPromiseInterface::REJECTED,
-//			$sut->getState()
-//		);
-//	}
-//
-//	/**
-//	 * This test is almost identical to the next one. Inside a try-catch
-//	 * block, it executes a then-catch chain. It asserts that the catch
-//	 * callback is provided the expected exception, and that the exception
-//	 * does not bubble out and into the catch block.
-//	 */
-//	public function testCatchMethodNotBubblesThrowables() {
-//		$expectedException = new Exception("Test exception");
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->resolve("test");
-//		$sut = $promiseContainer->getPromise();
-//		$onRejected = self::mockCallable(1, $expectedException);
-//
-//		$exception = null;
-//		try {
-//			$sut->then(function() use($expectedException) {
-//				throw $expectedException;
-//			})->catch($onRejected);
-//		}
-//		catch(Throwable $exception) {}
-//
-//		self::assertNull($exception);
-//	}
-//
-//	/**
-//	 * This test tests the opposite of the previous one: if there is no
-//	 * catch function in the promise chain, an exception should bubble up
-//	 * and be caught by the try-catch block.
-//	 */
-//	public function testNoCatchMethodBubblesThrowables() {
-//		$expectedException = new Exception("Test exception");
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->resolve("test");
-//		$sut = $promiseContainer->getPromise();
-//
-//		$exception = null;
-//		try {
-//			$sut->then(function() use($expectedException) {
-//				throw $expectedException;
-//			});
-//		}
-//		catch(Throwable $exception) {
-//			var_dump($exception);
-//		}
-//
-//		self::assertSame($expectedException, $exception);
-//	}
+	public function testFinallyDoesNotBlockOnRejected() {
+		$exception = new Exception();
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+		$sut = $promiseContainer->getPromise();
+		$sut->finally(function() {})
+			->then(
+				null,
+				self::mockCallable(1, $exception),
+			)
+			->complete();
+	}
+
+	public function testFinallyDoesNotBlockOnRejectedWhenReturnsScalar() {
+		$exception = new Exception();
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+		$sut = $promiseContainer->getPromise();
+		$sut->finally(function() {
+			return "Arbitrary scalar value";
+		})->then(
+			null,
+			self::mockCallable(1, $exception),
+		)->complete();
+	}
+
+	public function testFinallyPassesThrownException() {
+		$exception1 = new Exception("First");
+		$exception2 = new Exception("Second");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception1);
+
+		self::expectException(Exception::class);
+		self::expectExceptionMessage("Second");
+		$sut = $promiseContainer->getPromise();
+		$sut->finally(function() use($exception2) {
+			throw $exception2;
+		})->then(
+			self::mockCallable(0),
+			self::mockCallable(1, $exception1),
+		)->complete();
+	}
+
+	public function testOnRejectedCalledWhenFinallyThrows() {
+		$exception = new PromiseException("Oh dear, oh dear");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("Example resolution");
+
+		self::expectException(PromiseException::class);
+		self::expectExceptionMessage("Oh dear, oh dear");
+		$sut = $promiseContainer->getPromise();
+		$sut->finally(function() use($exception) {
+			throw $exception;
+		})->then(
+			self::mockCallable(1, "Example resolution"),
+			self::mockCallable(0)
+		)->complete();
+	}
+
+	public function testGetStatePending() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+		self::assertEquals(
+			HttpPromiseInterface::PENDING,
+			$sut->getState()
+		);
+	}
+
+	public function testGetStateFulfilled() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("Example resolution");
+		$sut = $promiseContainer->getPromise();
+		$sut->complete();
+
+		self::assertEquals(
+			HttpPromiseInterface::FULFILLED,
+			$sut->getState()
+		);
+	}
+
+	public function testGetStateRejected() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject(new Exception("Example rejection"));
+		$sut = $promiseContainer->getPromise();
+		$sut->complete();
+
+		self::assertEquals(
+			HttpPromiseInterface::REJECTED,
+			$sut->getState()
+		);
+	}
+
+	/**
+	 * This test is almost identical to the next one. Inside a try-catch
+	 * block, it executes a then-catch chain. It asserts that the catch
+	 * callback is provided the expected exception, and that the exception
+	 * does not bubble out and into the catch block.
+	 */
+	public function testCatchMethodNotBubblesThrowables() {
+		$expectedException = new Exception("Test exception");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("test");
+		$sut = $promiseContainer->getPromise();
+		$onRejected = self::mockCallable(1, $expectedException);
+
+		$exception = null;
+		try {
+			$sut->then(function() use($expectedException) {
+				throw $expectedException;
+			})
+			->catch($onRejected)
+			->complete();
+		}
+		catch(Throwable $exception) {}
+
+		self::assertNull($exception);
+	}
+
+	/**
+	 * This test tests the opposite of the previous one: if there is no
+	 * catch function in the promise chain, an exception should bubble up
+	 * and be caught by the try-catch block.
+	 */
+	public function testNoCatchMethodBubblesThrowables() {
+		$expectedException = new Exception("Test exception");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("test");
+		$sut = $promiseContainer->getPromise();
+
+		$exception = null;
+		try {
+			$sut->then(function() use($expectedException) {
+				throw $expectedException;
+			})->complete();
+		}
+		catch(Throwable $exception) {}
+
+		self::assertSame($expectedException, $exception);
+	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {
 		$resolveCallback = null;

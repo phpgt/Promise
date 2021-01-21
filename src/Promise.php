@@ -1,6 +1,7 @@
 <?php
 namespace Gt\Promise;
 
+use Gt\Promise\Chain\CatchChain;
 use Gt\Promise\Chain\Chainable;
 use Gt\Promise\Chain\FinallyChain;
 use Gt\Promise\Chain\ThenChain;
@@ -30,12 +31,17 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		callable $onFulfilled = null,
 		callable $onRejected = null
 	):PromiseInterface {
-		if($onFulfilled || $onRejected) {
+		if($onFulfilled) {
 			array_push($this->chain, new ThenChain(
 				$onFulfilled,
 				$onRejected
 			));
-			// TODO: If onfulfilled is null, should we create a new Catch()?
+		}
+		elseif($onRejected) {
+			array_push($this->chain, new CatchChain(
+				$onFulfilled,
+				$onRejected
+			));
 		}
 
 		return $this;
@@ -70,7 +76,17 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		callable $onFulfilled = null,
 		callable $onRejected = null
 	):void {
-		$this->then($onFulfilled, $onRejected);
+		if(isset($this->rejection)) {
+			$this->state = HttpPromiseInterface::REJECTED;
+		}
+		elseif(isset($this->resolvedValue)) {
+			$this->state = HttpPromiseInterface::FULFILLED;
+		}
+
+		if($onFulfilled || $onRejected) {
+			$this->then($onFulfilled, $onRejected);
+		}
+
 		$this->sortChain();
 		$this->handleChain();
 	}
@@ -89,6 +105,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 			);
 		}
 
+		$emptyChain = empty($this->chain);
 		while($then = array_shift($this->chain)) {
 			try {
 				if($reason = array_shift($rejectedForwardQueue)) {
@@ -106,6 +123,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 				}
 				else {
 					$value = $then->callOnFulfilled($this->resolvedValue);
+					$this->state = HttpPromiseInterface::FULFILLED;
 					if(!is_null($value)) {
 						$this->resolvedValue = $value;
 					}
@@ -116,7 +134,8 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 			}
 		}
 
-		if($reason = array_shift($rejectedForwardQueue)) {
+		if(!$emptyChain
+		&& $reason = array_shift($rejectedForwardQueue)) {
 			throw $reason;
 		}
 	}
