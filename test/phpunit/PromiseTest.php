@@ -1,6 +1,7 @@
 <?php
 namespace Gt\Promise\Test;
 
+use DateTime;
 use Exception;
 use Gt\Promise\Promise;
 use Gt\Promise\PromiseException;
@@ -12,6 +13,7 @@ use RangeException;
 use stdClass;
 use Throwable;
 use Http\Promise\Promise as HttpPromiseInterface;
+use TypeError;
 
 class PromiseTest extends TestCase {
 	public function testOnFulfilledResolvesCorrectValue() {
@@ -380,102 +382,141 @@ class PromiseTest extends TestCase {
 		});
 	}
 
-//	public function testCompleteThrowsExceptionWithNoRejectionHandler() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject(new Exception());
-//		$sut = $promiseContainer->getPromise();
-//
-//		self::expectException(PromiseException::class);
-//
-//		$sut->complete(
-//			null,
-//			function() {
-//				throw new PromiseException("This is not handled");
-//			}
-//		);
-//	}
-//
-//	public function testCompleteThrowsExceptionWithoutOnFulfilledOnRejectedHandlers() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$rejectionMessage = "Example rejection message";
-//		$promiseContainer->reject(new Exception($rejectionMessage));
-//		$sut = $promiseContainer->getPromise();
-//		self::expectExceptionMessage($rejectionMessage);
-//		$sut->complete(/* pass no fulfil/reject handler */);
-//	}
-//
-//	public function testCompleteShouldNotContinueThrowingWhenExceptionCaught() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject(new Exception());
-//
-//		$sut = $promiseContainer->getPromise();
-//		$exception = null;
-//
-//		try {
-//			$sut->complete(
-//				null,
-//				function(Throwable $reason) {
-//// Do nothing, essentially "catching" the exception.
-//				}
-//			);
-//		}
-//		catch(Exception $exception) {
-//// Catching any exception will mean $exception is not null.
-//		}
-//
-//		self::assertNull($exception);
-//	}
-//
-//	public function testCatchCalledForRejectedPromise() {
-//		$exception = new Exception("Example");
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject($exception);
-//
-//		$sut = $promiseContainer->getPromise();
-//		$sut->catch(
-//			self::mockCallable(1, $exception),
-//		);
-//	}
-//
-//	public function testCatchRejectionReasonIdenticalToRejectionException() {
-//		$exception = new Exception("Example");
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject($exception);
-//
-//		$onRejected = self::mockCallable(1, $exception);
-//
-//		$sut = $promiseContainer->getPromise();
-//		$sut->catch(function($reason) use($onRejected) {
-//			call_user_func($onRejected, $reason);
-//		});
-//	}
-//
-//	public function testCatchRejectionHandlerIsCalledByTypeHintedOnRejectedCallback() {
-//		$exception = new PromiseException("Example");
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject($exception);
-//		$sut = $promiseContainer->getPromise();
-//
-//		$onRejected = self::mockCallable(1, $exception);
-//
-//		$sut->catch(function(PromiseException $reason) use($onRejected) {
-//			call_user_func($onRejected, $reason);
-//		});
-//	}
-//
-//	public function testCatchRejectionHandlerIsNotCalledByTypeHintedOnRejectedCallback() {
-//		$exception = new RangeException();
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->reject($exception);
-//		$sut = $promiseContainer->getPromise();
-//
-//		$onRejected = self::mockCallable(0);
-//
-//		$sut->catch(function(PromiseException $reason) use($onRejected) {
-//			call_user_Func($onRejected, $reason);
-//		});
-//	}
-//
+	public function testCompleteThrowsExceptionWithNoRejectionHandler() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject(new Exception());
+		$sut = $promiseContainer->getPromise();
+
+		self::expectException(PromiseException::class);
+
+		$sut->complete(
+			null,
+			function() {
+				throw new PromiseException("This is not handled");
+			}
+		);
+	}
+
+	public function testCompleteThrowsExceptionWithoutOnFulfilledOnRejectedHandlers() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$rejectionMessage = "Example rejection message";
+		$promiseContainer->reject(new Exception($rejectionMessage));
+		$sut = $promiseContainer->getPromise();
+		self::expectExceptionMessage($rejectionMessage);
+		$sut->complete(/* pass no fulfil/reject handler */);
+	}
+
+	public function testCompleteShouldNotContinueThrowingWhenExceptionCaught() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject(new Exception());
+
+		$sut = $promiseContainer->getPromise();
+		$exception = null;
+
+		try {
+			$sut->complete(
+				null,
+				function(Throwable $reason) {
+// Do nothing, essentially "catching" the exception.
+				}
+			);
+		}
+		catch(Exception $exception) {
+// Catching any exception will mean $exception is not null.
+		}
+
+		self::assertNull($exception);
+	}
+
+	public function testCatchCalledForRejectedPromise() {
+		$exception = new Exception("Example");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+
+		$sut = $promiseContainer->getPromise();
+		$sut->catch(
+			self::mockCallable(1, $exception),
+		)->complete();
+	}
+
+	public function testCatchRejectionReasonIdenticalToRejectionException() {
+		$exception = new Exception("Example");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+
+		$onRejected = self::mockCallable(1, $exception);
+
+		$sut = $promiseContainer->getPromise();
+		$sut->catch(function($reason) use($onRejected) {
+			call_user_func($onRejected, $reason);
+		})->complete();
+	}
+
+	public function testCatchRejectionHandlerIsCalledByTypeHintedOnRejectedCallback() {
+		$exception = new PromiseException("Example");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+		$sut = $promiseContainer->getPromise();
+
+		$onRejected = self::mockCallable(1, $exception);
+
+		$sut->catch(function(PromiseException $reason) use($onRejected) {
+			call_user_func($onRejected, $reason);
+		})->complete();
+	}
+
+	public function testCatchRejectionHandlerIsNotCalledByTypeHintedOnRejectedCallback() {
+		$exception = new RangeException();
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+		$sut = $promiseContainer->getPromise();
+
+		$onRejected = self::mockCallable(0);
+		self::expectException(RangeException::class);
+
+		$sut->catch(function(PromiseException $reason) use($onRejected) {
+			call_user_func($onRejected, $reason);
+		})->complete();
+	}
+
+	public function testCatchRejectionHandlerIsCalledByAnotherMatchingTypeHintedOnRejectedCallback() {
+		$exception = new RangeException();
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+		$sut = $promiseContainer->getPromise();
+
+		$onRejected1 = self::mockCallable(0);
+		$onRejected2 = self::mockCallable(1);
+
+		$sut->catch(function(PromiseException $reason) use($onRejected1) {
+			call_user_func($onRejected1, $reason);
+		})->catch(function(RangeException $reason) use($onRejected2) {
+			call_user_func($onRejected2, $reason);
+		})->complete();
+	}
+
+	public function testMatchingTypedCatchRejectionHandlerCanHandleInternalTypeErrors() {
+		$exception = new RangeException();
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->reject($exception);
+		$sut = $promiseContainer->getPromise();
+
+		$onRejected1 = self::mockCallable(0);
+		$onRejected2 = self::mockCallable(0);
+
+		// There is a type error in the matching catch callback. This
+		// should bubble out of the chain rather than being seen as
+		// missing the RangeException type hint.
+		self::expectException(TypeError::class);
+
+		$sut->catch(function(PromiseException $reason1) use($onRejected1) {
+			call_user_func($onRejected1, $reason1);
+		})->catch(function(RangeException $reason2) use($onRejected2) {
+			$error = new DateTime(fn() => "this is so wrong");
+			call_user_func($onRejected2, $reason2);
+		})->complete();
+	}
+
 //	public function testCatchNotCalledOnFulfilledPromise() {
 //		$promiseContainer = $this->getTestPromiseContainer();
 //		$promiseContainer->resolve("example");
