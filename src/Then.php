@@ -52,10 +52,7 @@ class Then {
 					$error->getMessage(),
 					"must be of type $paramType"
 				)) {
-// TODO: This is the magic that makes typed catches work! The $reason here should
-// bubble up and out... maybe a new parameter on the Then to indicate it needs
-// throwing no matter what??
-					throw $reason;
+					throw $error;
 				}
 			}
 

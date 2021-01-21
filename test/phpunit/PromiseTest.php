@@ -508,6 +508,7 @@ class PromiseTest extends TestCase {
 		// should bubble out of the chain rather than being seen as
 		// missing the RangeException type hint.
 		self::expectException(TypeError::class);
+		self::expectExceptionMessage("DateTime::__construct(): Argument #1 (\$datetime) must be of type string, Closure given");
 
 		$sut->catch(function(PromiseException $reason1) use($onRejected1) {
 			call_user_func($onRejected1, $reason1);
