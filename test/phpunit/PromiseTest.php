@@ -6,6 +6,7 @@ use Exception;
 use Gt\Promise\Promise;
 use Gt\Promise\PromiseException;
 use Gt\Promise\PromiseResolvedWithAnotherPromiseException;
+use Gt\Promise\PromiseWaitTaskNotSetException;
 use LogicException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -679,6 +680,90 @@ class PromiseTest extends TestCase {
 		catch(Throwable $exception) {}
 
 		self::assertSame($expectedException, $exception);
+	}
+
+	public function testWait() {
+		$callCount = 0;
+		$resolveCallback = null;
+		$executor = function(callable $resolve, callable $reject) use(&$resolveCallback):void  {
+			$resolveCallback = $resolve;
+		};
+		$resolvedValue = "Done!";
+		$sut = new Promise($executor);
+
+		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue) {
+			if($callCount >= 10) {
+				call_user_func($resolveCallback, $resolvedValue);
+			}
+			else {
+				$callCount++;
+			}
+		};
+
+		$sut->setWaitTask($waitTask);
+		self::assertEquals($resolvedValue, $sut->wait(true));
+		self::assertEquals(10, $callCount);
+	}
+
+	public function testWaitNotUnwrapped() {
+		$callCount = 0;
+		$resolveCallback = null;
+		$executor = function(callable $resolve, callable $reject) use(&$resolveCallback):void  {
+			$resolveCallback = $resolve;
+		};
+		$resolvedValue = "Done!";
+		$sut = new Promise($executor);
+
+		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue) {
+			if($callCount >= 10) {
+				call_user_func($resolveCallback, $resolvedValue);
+			}
+			else {
+				$callCount++;
+			}
+		};
+
+		$sut->setWaitTask($waitTask);
+		self::assertNull($sut->wait(false));
+		self::assertEquals(10, $callCount);
+	}
+
+	public function testWaitUnwrapsFinalValue() {
+		$callCount = 0;
+		$resolveCallback = null;
+		$executor = function(callable $resolve, callable $reject) use(&$resolveCallback):void  {
+			$resolveCallback = $resolve;
+		};
+		$resolvedValue = "Done!";
+		$sut = new Promise($executor);
+		$sut->then(function($fulfilled) {
+			return "Returned from within onFulfilled!";
+		});
+
+		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue) {
+			if($callCount >= 10) {
+				call_user_func($resolveCallback, $resolvedValue);
+			}
+			else {
+				$callCount++;
+			}
+		};
+
+		$sut->setWaitTask($waitTask);
+		self::assertEquals(
+			"Returned from within onFulfilled!",
+			$sut->wait(true)
+		);
+		self::assertEquals(10, $callCount);
+	}
+
+	public function testWaitWithNoWaitTask() {
+		$executor = function(callable $resolve, callable $reject) use(&$resolveCallback):void  {
+			$resolveCallback = $resolve;
+		};
+		$sut = new Promise($executor);;
+		self::expectException(PromiseWaitTaskNotSetException::class);
+		$sut->wait();
 	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {
