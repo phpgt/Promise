@@ -518,24 +518,24 @@ class PromiseTest extends TestCase {
 		})->complete();
 	}
 
-//	public function testCatchNotCalledOnFulfilledPromise() {
-//		$promiseContainer = $this->getTestPromiseContainer();
-//		$promiseContainer->resolve("example");
-//		$sut = $promiseContainer->getPromise();
-//		$sut->catch(self::mockCallable(0));
-//	}
-//
-//	public function testFinallyDoesNotBlockOnFulfilled() {
-//		$expectedValue = "Don't break promises!";
-//		$promiseContainer = $this->getTestPromiseContainer();
-//
-//		$sut = $promiseContainer->getPromise();
-//		$sut->finally(fn() => "example123")
-//			->then(self::mockCallable(1, $expectedValue));
-//
-//		$promiseContainer->resolve($expectedValue);
-//	}
-//
+	public function testCatchNotCalledOnFulfilledPromise() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve("example");
+		$sut = $promiseContainer->getPromise();
+		$sut->catch(self::mockCallable(0))->complete();
+	}
+
+	public function testFinallyDoesNotBlockOnFulfilled() {
+		$expectedValue = "Don't break promises!";
+		$promiseContainer = $this->getTestPromiseContainer();
+		$promiseContainer->resolve($expectedValue);
+
+		$sut = $promiseContainer->getPromise();
+		$sut->finally(fn() => "example123")
+		->then(self::mockCallable(1, $expectedValue))
+		->complete();
+	}
+
 //	public function testFinallyDoesNotBlockOnRejected() {
 //		$exception = new Exception();
 //		$promiseContainer = $this->getTestPromiseContainer();

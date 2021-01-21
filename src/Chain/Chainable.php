@@ -1,11 +1,11 @@
 <?php
-namespace Gt\Promise;
+namespace Gt\Promise\Chain;
 
 use ReflectionFunction;
 use Throwable;
 use TypeError;
 
-class Then {
+abstract class Chainable {
 	/** @var callable|null */
 	private $onFulfilled;
 	/** @var callable|null */

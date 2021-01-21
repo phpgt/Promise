@@ -1,6 +1,9 @@
 <?php
 namespace Gt\Promise;
 
+use Gt\Promise\Chain\Chainable;
+use Gt\Promise\Chain\FinallyChain;
+use Gt\Promise\Chain\ThenChain;
 use Throwable;
 use Http\Promise\Promise as HttpPromiseInterface;
 
@@ -8,15 +11,15 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	private string $state;
 	/** @var mixed */
 	private $resolvedValue;
-	/** @var Then[] */
-	private array $thenQueue;
+	/** @var Chainable[] */
+	private array $chain;
 	/** @var callable */
 	private $executor;
 	private ?Throwable $rejection;
 
 	public function __construct(callable $executor) {
 		$this->state = HttpPromiseInterface::PENDING;
-		$this->thenQueue = [];
+		$this->chain = [];
 		$this->rejection = null;
 		
 		$this->executor = $executor;
@@ -28,10 +31,11 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		callable $onRejected = null
 	):PromiseInterface {
 		if($onFulfilled || $onRejected) {
-			array_push($this->thenQueue, new Then(
+			array_push($this->chain, new ThenChain(
 				$onFulfilled,
 				$onRejected
 			));
+			// TODO: If onfulfilled is null, should we create a new Catch()?
 		}
 
 		return $this;
@@ -46,7 +50,20 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	public function finally(
 		callable $onFulfilledOrRejected
 	):PromiseInterface {
-		// TODO: Implement finally() method.
+		if($onFulfilledOrRejected instanceof Throwable) {
+			array_push($this->chain, new FinallyChain(
+				null,
+				$onFulfilledOrRejected
+			));
+		}
+		else {
+			array_push($this->chain, new FinallyChain(
+				$onFulfilledOrRejected,
+				null
+			));
+		}
+
+		return $this;
 	}
 
 	public function complete(
@@ -54,10 +71,16 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		callable $onRejected = null
 	):void {
 		$this->then($onFulfilled, $onRejected);
-		$this->handleThens();
+		$this->sortChain();
+		$this->handleChain();
 	}
 
-	public function handleThens():void {
+	private function sortChain():void {
+		usort($this->chain, fn($a, $b)
+			=> $a instanceof FinallyChain ? 1 : 0);
+	}
+
+	private function handleChain():void {
 		$rejectedForwardQueue = [];
 		if(!is_null($this->rejection)) {
 			array_push(
@@ -66,7 +89,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 			);
 		}
 
-		while($then = array_shift($this->thenQueue)) {
+		while($then = array_shift($this->chain)) {
 			try {
 				if($reason = array_shift($rejectedForwardQueue)) {
 					$rejectedResult = $then->callOnRejected($reason);
