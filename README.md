@@ -1,13 +1,31 @@
 A pleasant way to work with asynchronous PHP.
 =============================================
 
+There are many implementations of the concept of a `Promise`. This library aims to be compatible with the [Web API's Promise implementation][mdn-promise], providing a `then`, `catch` and `finally` mechanism that behave the same as when working with promises in the web browser.
+
+***
+
+<a href="https://github.com/PhpGt/Promise/actions" target="_blank">
+	<img src="https://badge.status.php.gt/promise-build.svg" alt="Build status" />
+</a>
+<a href="https://scrutinizer-ci.com/g/PhpGt/Promise" target="_blank">
+	<img src="https://badge.status.php.gt/promise-quality.svg" alt="Code quality" />
+</a>
+<a href="https://scrutinizer-ci.com/g/PhpGt/Promise" target="_blank">
+	<img src="https://badge.status.php.gt/promise-coverage.svg" alt="Code coverage" />
+</a>
+<a href="https://packagist.org/packages/PhpGt/Promise" target="_blank">
+	<img src="https://badge.status.php.gt/promise-version.svg" alt="Current version" />
+</a>
+<a href="http://www.php.gt/promise" target="_blank">
+	<img src="https://badge.status.php.gt/promise-docs.svg" alt="PHP.Gt/Promise documentation" />
+</a>
+
 In computer science, a `Promise` is a mechanism that provides a simple and direct relationship between procedural code and asynchronous callbacks. Functions within procedural languages, like plain old PHP, have two ways they can affect your program's flow: either by returning values or throwing exceptions.
 
 When working with functions that execute asynchronously, we can't return values because they might not be ready yet, and we can't throw exceptions because that's a procedural concept (where should we catch them?). That's where promises come in: instead of returning a value or throwing an exception, your functions can return a `Promise`, which is an object that can be _fulfilled_ with a value, or _rejected_ with an exception, but not necessarily at the point that they are returned.
 
 With this concept, the actual work that calculates or loads the value required by your code can be _deferred_ to a task that executes asynchronously. Behind the scenes of PHP.Gt/Promise is a `Deferred` class that is used for exactly this.
-
-There are many implementations of the concept of a `Promise`. This library aims to be compatible with the [Web API's Promise][mdn-promise] implementation, providing a `then`, `catch` and `finally` mechanism that behave the same as when working with promises in the web browser.
 
 Example usage
 -------------
