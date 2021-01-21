@@ -21,5 +21,22 @@
 		"psr-4": {
 			"Gt\\Promise\\Test\\": "./test/phpunit"
 		}
-	}
+	},
+	"keywords": [
+		"promise",
+		"async",
+		"asynchronous",
+		"concurrent",
+		"concurrency",
+		"then",
+		"deferred",
+		"w3c",
+		"callback"
+	],
+	"funding": [
+		{
+			"type": "github",
+			"url": "https://github.com/sponsors/PhpGt"
+		}
+	]
 }
