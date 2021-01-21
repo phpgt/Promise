@@ -2,6 +2,7 @@
 namespace Gt\Promise\Test;
 
 use Gt\Promise\PromiseInterface;
+use Http\Promise\Promise as HttpPromiseInterface;
 
 class TestPromiseContainer {
 	private PromiseInterface $promise;
@@ -10,18 +11,18 @@ class TestPromiseContainer {
 	/** @var ?callable */
 	private $reject;
 	/** @var ?callable */
-	private $settle;
+	private $complete;
 
 	public function __construct(
 		PromiseInterface $promise,
 		callable $resolve = null,
 		callable $reject = null,
-		callable $settle = null
+		callable $complete = null
 	) {
 		$this->promise = $promise;
 		$this->resolve = $resolve;
 		$this->reject = $reject;
-		$this->settle = $settle;
+		$this->complete = $complete;
 	}
 
 	public function getPromise():PromiseInterface {
@@ -29,14 +30,18 @@ class TestPromiseContainer {
 	}
 
 	public function resolve(...$args):?PromiseInterface {
-		return call_user_func($this->resolve, ...$args);
+		if($this->promise->getState() !== HttpPromiseInterface::FULFILLED) {
+			$promise = call_user_func($this->resolve, ...$args);
+			call_user_func($this->complete);
+			return $promise;
+		}
+
+		return $this->promise;
 	}
 
 	public function reject(...$args):?PromiseInterface {
-		return call_user_func($this->reject, ...$args);
-	}
-
-	public function settle(...$args):?PromiseInterface {
-		return call_user_func($this->settle, ...$args);
+		$promise = call_user_func($this->reject, ...$args);
+		call_user_func($this->complete);
+		return $promise;
 	}
 }

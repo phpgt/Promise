@@ -75,7 +75,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		return $this;
 	}
 
-	public function complete(
+	private function complete(
 		callable $onFulfilled = null,
 		callable $onRejected = null
 	):void {
