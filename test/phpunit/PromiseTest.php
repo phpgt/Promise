@@ -659,6 +659,28 @@ class PromiseTest extends TestCase {
 		$sut->wait();
 	}
 
+	public function testFulfilledReturnsNewPromiseThatIsResolved() {
+		$numberPromiseContainer = $this->getTestPromiseContainer();
+		$numberPromise = $numberPromiseContainer->getPromise();
+
+		$messagePromiseContainer = $this->getTestPromiseContainer();
+		$messagePromise = $messagePromiseContainer->getPromise();
+
+		$numberToResolveWith = null;
+
+// The first onFulfilled takes the number to process, and returns a new promise
+// which should resolve to a message containing the number.
+		$numberPromise->then(function(int $number) use($messagePromiseContainer, $messagePromise, &$numberToResolveWith) {
+			$numberToResolveWith = $number;
+			return $messagePromise;
+		})->then(self::mockCallable(1, "Your number is 105"));
+
+// TODO: Issue #12: 105 resolves before the message does, so the numberPromise's then function will return a pending Promise.
+// The chained then should only be called after the message is resolved, so this needs to be stored internally somewhere for fulfillment.
+		$numberPromiseContainer->resolve(105);
+		$messagePromiseContainer->resolve("Your number is $numberToResolveWith");
+	}
+
 	protected function getTestPromiseContainer():TestPromiseContainer {
 		$resolveCallback = null;
 		$rejectCallback = null;
