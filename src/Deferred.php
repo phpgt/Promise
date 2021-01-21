@@ -9,20 +9,23 @@ class Deferred implements DeferredInterface {
 	private $resolveCallback;
 	/** @var callable */
 	private $rejectCallback;
+	/** @var callable */
+	private $completeCallback;
 	/** @var callable[] */
 	private array $processList;
 	/** @var callable[] */
-	private array $completeCallback;
+	private array $deferredCompleteCallback;
 	private bool $activated;
 
 	public function __construct(callable $process = null) {
-		$this->promise = new Promise(function($resolve, $reject):void {
+		$this->promise = new Promise(function($resolve, $reject, $complete):void {
 			$this->resolveCallback = $resolve;
 			$this->rejectCallback = $reject;
+			$this->completeCallback = $complete;
 		});
 
 		$this->processList = [];
-		$this->completeCallback = [];
+		$this->deferredCompleteCallback = [];
 		$this->activated = true;
 
 		if(!is_null($process)) {
@@ -35,13 +38,13 @@ class Deferred implements DeferredInterface {
 	}
 
 	public function resolve($value = null):void {
-		$this->complete();
 		call_user_func($this->resolveCallback, $value);
+		$this->complete();
 	}
 
 	public function reject(Throwable $reason):void {
-		$this->complete();
 		call_user_func($this->rejectCallback, $reason);
+		$this->complete();
 	}
 
 	private function complete():void {
@@ -49,8 +52,10 @@ class Deferred implements DeferredInterface {
 			return;
 		}
 
+		call_user_func($this->completeCallback);
+
 		$this->activated = false;
-		foreach($this->completeCallback as $callback) {
+		foreach($this->deferredCompleteCallback as $callback) {
 			call_user_func($callback);
 		}
 	}
@@ -69,6 +74,6 @@ class Deferred implements DeferredInterface {
 	}
 
 	public function addCompleteCallback(callable $callback):void {
-		array_push($this->completeCallback, $callback);
+		array_push($this->deferredCompleteCallback, $callback);
 	}
 }
