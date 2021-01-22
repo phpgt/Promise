@@ -695,8 +695,6 @@ class PromiseTest extends TestCase {
 			return $messagePromise;
 		})->then(self::mockCallable(1, "Your number is 105"));
 
-// TODO: Issue #12: 105 resolves before the message does, so the numberPromise's then function will return a pending Promise.
-// The chained then should only be called after the message is resolved, so this needs to be stored internally somewhere for fulfillment.
 		$numberPromiseContainer->resolve(105);
 		$messagePromiseContainer->resolve("Your number is $numberToResolveWith");
 	}
@@ -707,13 +705,20 @@ class PromiseTest extends TestCase {
 	 * address from their name, from an external list.
 	 */
 	public function testFulfilledReturnsNewPromiseThatIsResolved2() {
+// Our fake data source that will be "searched" by a deferred task (not using an
+// actual Deferred object, but instead, longhand performing a loop outside
+// of the Promise callback).
 		$addressBook = [
 			"Adrian Appleby" => "16B Acorn Grove",
 			"Bentley Buttersworth" => "59 Brambetwicket Drive",
 			"Cacey Coggleton" => "10 Cambridge Road",
 		];
+// The search term used to resolve the first promise with.
+		$searchTerm = null;
+// We will store any address received by the final promise fulfilment callback.
 		$receivedAddresses = [];
 
+// All references to the various callbacks, usually handled by a Deferred:
 		$fulfill = null;
 		$reject = null;
 		$complete = null;
@@ -721,7 +726,6 @@ class PromiseTest extends TestCase {
 		$innerReject = null;
 		$innerComplete = null;
 		$innerPromise = null;
-		$searchTerm = null;
 
 		$sut = new Promise(function($f, $r, $c) use(&$fulfill, &$reject, &$complete) {
 			$fulfill = $f;
@@ -729,6 +733,7 @@ class PromiseTest extends TestCase {
 			$complete = $c;
 		});
 
+// Define asynchronous behaviour:
 		$sut->then(function(string $name) use(&$innerFulfil, &$innerReject, &$innerComplete, &$innerPromise, &$searchTerm) {
 			$searchTerm = $name;
 
@@ -742,11 +747,14 @@ class PromiseTest extends TestCase {
 			array_push($receivedAddresses, $address);
 		});
 
-		// This is the "user code" that initiates the search:
-		call_user_func($fulfill, "Buttersworth");
+// This is the "user code" that initiates the search.
+// Completing the promise resolution with "Butter" will call the Promise's
+// onFulfilled callback, thus our $searchTerm variable should contain "Butter".
+		call_user_func($fulfill, "Butter");
 		call_user_func($complete);
+		self::assertEquals("Butter", $searchTerm);
 
-		// This is the deferred task for the search:
+// This is the deferred task for the search:
 		foreach($addressBook as $name => $address) {
 			if(strstr($name, $searchTerm)) {
 				call_user_func($innerFulfil, $address);
