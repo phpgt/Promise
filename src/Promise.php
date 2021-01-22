@@ -79,13 +79,6 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		callable $onFulfilled = null,
 		callable $onRejected = null
 	):void {
-		if(isset($this->rejection)) {
-			$this->state = HttpPromiseInterface::REJECTED;
-		}
-		elseif(isset($this->resolvedValue)) {
-			$this->state = HttpPromiseInterface::FULFILLED;
-		}
-
 		if($onFulfilled || $onRejected) {
 			$this->then($onFulfilled, $onRejected);
 		}
@@ -125,18 +118,27 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 					}
 				}
 				else {
-					$value = $then->callOnFulfilled($this->resolvedValue);
-					if($value instanceof PromiseInterface) {
-						$value->then(function($resolvedValue) {
-							$this->resolvedValue = $resolvedValue;
-							$this->complete();
-						});
-						break;
-					}
+					if(isset($this->resolvedValue)) {
+						$value = $then->callOnFulfilled($this->resolvedValue);
 
-					$this->state = HttpPromiseInterface::FULFILLED;
-					if(!is_null($value)) {
-						$this->resolvedValue = $value;
+						if($value instanceof PromiseInterface) {
+							unset($this->resolvedValue);
+
+							$value->then(function($resolvedValue) use($then) {
+								$this->resolvedValue = $resolvedValue;
+								$this->complete();
+							});
+							break;
+						}
+
+						$this->state = HttpPromiseInterface::FULFILLED;
+						if(!is_null($value)) {
+							$this->resolvedValue = $value;
+						}
+					}
+					elseif($then instanceof FinallyChain
+					&& isset($this->rejection)) {
+						$then->callOnFulfilled($this->rejection);
 					}
 				}
 			}
@@ -145,9 +147,18 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 			}
 		}
 
-		if(!$emptyChain
-		&& $reason = array_shift($rejectedForwardQueue)) {
+		$reason = array_shift($rejectedForwardQueue);
+		if($reason && !$emptyChain) {
 			throw $reason;
+		}
+
+		if($emptyChain) {
+			if($reason) {
+				$this->state = HttpPromiseInterface::REJECTED;
+			}
+			else {
+				$this->state = HttpPromiseInterface::FULFILLED;
+			}
 		}
 	}
 
@@ -212,11 +223,9 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		}
 
 		$this->resolvedValue = $value;
-		$this->state = HttpPromiseInterface::FULFILLED;
 	}
 
 	private function reject(Throwable $reason):void {
 		$this->rejection = $reason;
-		$this->state = HttpPromiseInterface::REJECTED;
 	}
 }

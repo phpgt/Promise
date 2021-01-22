@@ -52,7 +52,18 @@ class Deferred implements DeferredInterface {
 			return;
 		}
 
-		call_user_func($this->completeCallback);
+		$completionAttempts = 0;
+		do {
+			if($completionAttempts > 0) {
+				foreach($this->processList as $process) {
+					call_user_func($process);
+				}
+			}
+
+			call_user_func($this->completeCallback);
+			$completionAttempts++;
+		}
+		while($this->promise->getState() === "pending");
 
 		$this->activated = false;
 		foreach($this->deferredCompleteCallback as $callback) {

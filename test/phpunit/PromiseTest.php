@@ -583,15 +583,20 @@ class PromiseTest extends TestCase {
 	public function testWait() {
 		$callCount = 0;
 		$resolveCallback = null;
-		$executor = function(callable $resolve, callable $reject) use(&$resolveCallback):void  {
+		$rejectCallback = null;
+		$completeCallback = null;
+		$executor = function(callable $resolve, callable $reject, callable $complete) use(&$resolveCallback, &$rejectCallback, &$completeCallback):void  {
 			$resolveCallback = $resolve;
+			$rejectCallback = $reject;
+			$completeCallback = $complete;
 		};
 		$resolvedValue = "Done!";
 		$sut = new Promise($executor);
 
-		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue) {
+		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue, $completeCallback) {
 			if($callCount >= 10) {
 				call_user_func($resolveCallback, $resolvedValue);
+				call_user_func($completeCallback);
 			}
 			else {
 				$callCount++;
@@ -606,15 +611,20 @@ class PromiseTest extends TestCase {
 	public function testWaitNotUnwrapped() {
 		$callCount = 0;
 		$resolveCallback = null;
-		$executor = function(callable $resolve, callable $reject) use(&$resolveCallback):void  {
+		$rejectCallback = null;
+		$completeCallback = null;
+		$executor = function(callable $resolve, callable $reject, callable $complete) use(&$resolveCallback, &$rejectCallback, &$completeCallback):void  {
 			$resolveCallback = $resolve;
+			$rejectCallback = $reject;
+			$completeCallback = $complete;
 		};
 		$resolvedValue = "Done!";
 		$sut = new Promise($executor);
 
-		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue) {
+		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue, $completeCallback) {
 			if($callCount >= 10) {
 				call_user_func($resolveCallback, $resolvedValue);
+				call_user_func($completeCallback);
 			}
 			else {
 				$callCount++;
@@ -629,8 +639,12 @@ class PromiseTest extends TestCase {
 	public function testWaitUnwrapsFinalValue() {
 		$callCount = 0;
 		$resolveCallback = null;
-		$executor = function(callable $resolve, callable $reject) use(&$resolveCallback):void  {
+		$rejectCallback = null;
+		$completeCallback = null;
+		$executor = function(callable $resolve, callable $reject, callable $complete) use(&$resolveCallback, &$rejectCallback, &$completeCallback):void  {
 			$resolveCallback = $resolve;
+			$rejectCallback = $reject;
+			$completeCallback = $complete;
 		};
 		$resolvedValue = "Done!";
 		$sut = new Promise($executor);
@@ -638,9 +652,10 @@ class PromiseTest extends TestCase {
 			return "Returned from within onFulfilled!";
 		});
 
-		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue) {
+		$waitTask = function() use(&$callCount, $resolveCallback, $resolvedValue, $completeCallback) {
 			if($callCount >= 10) {
 				call_user_func($resolveCallback, $resolvedValue);
+				call_user_func($completeCallback);
 			}
 			else {
 				$callCount++;
@@ -684,6 +699,63 @@ class PromiseTest extends TestCase {
 // The chained then should only be called after the message is resolved, so this needs to be stored internally somewhere for fulfillment.
 		$numberPromiseContainer->resolve(105);
 		$messagePromiseContainer->resolve("Your number is $numberToResolveWith");
+	}
+
+	/**
+	 * Similar test to the one above, but done in a different style.
+	 * Closer to a real-world usage, this emulates getting a person's
+	 * address from their name, from an external list.
+	 */
+	public function testFulfilledReturnsNewPromiseThatIsResolved2() {
+		$addressBook = [
+			"Adrian Appleby" => "16B Acorn Grove",
+			"Bentley Buttersworth" => "59 Brambetwicket Drive",
+			"Cacey Coggleton" => "10 Cambridge Road",
+		];
+		$receivedAddresses = [];
+
+		$fulfill = null;
+		$reject = null;
+		$complete = null;
+		$innerFulfill = null;
+		$innerReject = null;
+		$innerComplete = null;
+		$innerPromise = null;
+		$searchTerm = null;
+
+		$sut = new Promise(function($f, $r, $c) use(&$fulfill, &$reject, &$complete) {
+			$fulfill = $f;
+			$reject = $r;
+			$complete = $c;
+		});
+
+		$sut->then(function(string $name) use(&$innerFulfil, &$innerReject, &$innerComplete, &$innerPromise, &$searchTerm) {
+			$searchTerm = $name;
+
+			$innerPromise = new Promise(function($f, $r, $c) use(&$innerFulfil, &$innerReject, &$innerComplete) {
+				$innerFulfil = $f;
+				$innerReject = $r;
+				$innerComplete = $c;
+			});
+			return $innerPromise;
+		})->then(function(string $address) use(&$receivedAddresses) {
+			array_push($receivedAddresses, $address);
+		});
+
+		// This is the "user code" that initiates the search:
+		call_user_func($fulfill, "Buttersworth");
+		call_user_func($complete);
+
+		// This is the deferred task for the search:
+		foreach($addressBook as $name => $address) {
+			if(strstr($name, $searchTerm)) {
+				call_user_func($innerFulfil, $address);
+				call_user_func($innerComplete);
+			}
+		}
+
+		self::assertCount(1, $receivedAddresses);
+		self::assertEquals($addressBook["Bentley Buttersworth"], $receivedAddresses[0]);
 	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {
