@@ -14,6 +14,8 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	private $resolvedValue;
 	/** @var Chainable[] */
 	private array $chain;
+	/** @var Chainable[] */
+	private array $pendingChain;
 	/** @var callable */
 	private $executor;
 	private ?Throwable $rejection;
@@ -24,6 +26,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	public function __construct(callable $executor) {
 		$this->state = HttpPromiseInterface::PENDING;
 		$this->chain = [];
+		$this->pendingChain = [];
 		$this->rejection = null;
 		
 		$this->executor = $executor;
@@ -124,8 +127,14 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 						if($value instanceof PromiseInterface) {
 							unset($this->resolvedValue);
 
-							$value->then(function($resolvedValue) use($then) {
+							array_push($this->pendingChain, $this->chain[0] ?? null);
+
+							$value->then(function($resolvedValue) {
 								$this->resolvedValue = $resolvedValue;
+								$then = array_pop($this->pendingChain);
+								if($then) {
+									$then->callOnFulfilled($this->resolvedValue);
+								}
 								$this->complete();
 							});
 							break;
