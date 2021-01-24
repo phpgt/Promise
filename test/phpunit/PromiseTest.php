@@ -715,7 +715,8 @@ class PromiseTest extends TestCase {
 		];
 // The search term used to resolve the first promise with.
 		$searchTerm = null;
-// We will store any address received by the final promise fulfilment callback.
+// We will store any parameters received by the promise fulfilment callbacks.
+		$receivedNames = [];
 		$receivedAddresses = [];
 
 // All references to the various callbacks, usually handled by a Deferred:
@@ -734,7 +735,8 @@ class PromiseTest extends TestCase {
 		});
 
 // Define asynchronous behaviour:
-		$sut->then(function(string $name) use(&$innerFulfil, &$innerReject, &$innerComplete, &$innerPromise, &$searchTerm) {
+		$sut->then(function(string $name) use(&$innerFulfil, &$innerReject, &$innerComplete, &$innerPromise, &$searchTerm, &$receivedNames) {
+			array_push($receivedNames, $name);
 			$searchTerm = $name;
 
 			$innerPromise = new Promise(function($f, $r, $c) use(&$innerFulfil, &$innerReject, &$innerComplete) {
@@ -762,6 +764,7 @@ class PromiseTest extends TestCase {
 			}
 		}
 
+		self::assertCount(1, $receivedNames);
 		self::assertCount(1, $receivedAddresses);
 		self::assertEquals($addressBook["Bentley Buttersworth"], $receivedAddresses[0]);
 	}

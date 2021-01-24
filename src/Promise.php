@@ -134,6 +134,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 								$then = array_pop($this->pendingChain);
 								if($then) {
 									$then->callOnFulfilled($this->resolvedValue);
+									$this->resolvedValue = null;
 								}
 								$this->complete();
 							});
