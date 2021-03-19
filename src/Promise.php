@@ -19,7 +19,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	private ?Throwable $rejection;
 	/** @var callable */
 	private $waitTask;
-	private float $waitTaskDelayMicroseconds;
+	private float $waitTaskDelay;
 
 	public function __construct(callable $executor) {
 		$this->state = HttpPromiseInterface::PENDING;
@@ -126,6 +126,14 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 				}
 				else {
 					$value = $then->callOnFulfilled($this->resolvedValue);
+					if($value instanceof PromiseInterface) {
+						$value->then(function($resolvedValue) {
+							$this->resolvedValue = $resolvedValue;
+							$this->complete();
+						});
+						break;
+					}
+
 					$this->state = HttpPromiseInterface::FULFILLED;
 					if(!is_null($value)) {
 						$this->resolvedValue = $value;
@@ -149,10 +157,10 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 
 	public function setWaitTask(
 		callable $task,
-		float $delayMicroseconds = 1_000
+		float $delaySeconds = 0.01
 	):void {
 		$this->waitTask = $task;
-		$this->waitTaskDelayMicroseconds = $delayMicroseconds;
+		$this->waitTaskDelay = $delaySeconds;
 	}
 
 	/** @param bool $unwrap */
@@ -163,7 +171,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 
 		while($this->getState() === HttpPromiseInterface::PENDING) {
 			call_user_func($this->waitTask);
-			usleep($this->waitTaskDelayMicroseconds);
+			usleep((int)($this->waitTaskDelay * 1_000_000));
 		}
 
 		$this->complete();

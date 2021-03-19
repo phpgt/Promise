@@ -48,11 +48,25 @@ abstract class Chainable {
 			$param = $reflection->getParameters()[0] ?? null;
 			if($param) {
 				$paramType = (string)$param->getType();
-				if(!strstr(
-					$error->getMessage(),
-					"must be of type $paramType"
-				)) {
-					throw $error;
+
+// TypeError messages behave slightly differently between PHP 7 and 8.
+// This strange if block will be dropped when PHP 7.4 support is dropped.
+				if(PHP_VERSION[0] >= 8) {
+					if(!strstr(
+						$error->getMessage(),
+						"must be of type $paramType"
+					)) {
+						throw $error;
+					}
+				}
+				else {
+					$paramType = str_replace("\\", "\\\\", $paramType);
+					if(!preg_match(
+						"/must be (of the type|an instance of) $paramType/",
+						$error->getMessage()
+					)) {
+						throw $error;
+					}
 				}
 			}
 
