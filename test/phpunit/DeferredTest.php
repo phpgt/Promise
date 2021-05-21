@@ -39,7 +39,7 @@ class DeferredTest extends TestCase {
 			$numCalls++;
 		};
 		$sut = new Deferred();
-		$sut->addCompleteCallback($completeCallback);
+		$sut->onComplete($completeCallback);
 		$sut->resolve(123);
 		$sut->reject(new Exception("Example"));
 		self::assertEquals(1, $numCalls);
