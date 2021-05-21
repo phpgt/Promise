@@ -33,6 +33,19 @@ class Deferred implements DeferredInterface {
 		}
 	}
 
+	public function addProcess(callable $process):void {
+		array_push($this->processList, $process);
+	}
+
+	/** @return callable[] */
+	public function getProcessList():array {
+		return $this->processList;
+	}
+
+	public function isActive():bool {
+		return $this->activated;
+	}
+
 	public function getPromise():Promise {
 		return $this->promise;
 	}
@@ -47,6 +60,10 @@ class Deferred implements DeferredInterface {
 		$this->complete();
 	}
 
+	public function onComplete(callable $callback):void {
+		array_push($this->deferredCompleteCallback, $callback);
+	}
+
 	private function complete():void {
 		if(!$this->activated) {
 			return;
@@ -58,22 +75,5 @@ class Deferred implements DeferredInterface {
 		foreach($this->deferredCompleteCallback as $callback) {
 			call_user_func($callback);
 		}
-	}
-
-	public function addProcess(callable $process):void {
-		array_push($this->processList, $process);
-	}
-
-	/** @return callable[] */
-	public function getProcessList():array {
-		return $this->processList;
-	}
-
-	public function isActive():bool {
-		return $this->activated;
-	}
-
-	public function addCompleteCallback(callable $callback):void {
-		array_push($this->deferredCompleteCallback, $callback);
 	}
 }
