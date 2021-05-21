@@ -14,6 +14,8 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	private $resolvedValue;
 	/** @var Chainable[] */
 	private array $chain;
+	/** @var Chainable[] */
+	private array $pendingChain;
 	/** @var callable */
 	private $executor;
 	private ?Throwable $rejection;
@@ -24,6 +26,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	public function __construct(callable $executor) {
 		$this->state = HttpPromiseInterface::PENDING;
 		$this->chain = [];
+		$this->pendingChain = [];
 		$this->rejection = null;
 		
 		$this->executor = $executor;
@@ -79,13 +82,6 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		callable $onFulfilled = null,
 		callable $onRejected = null
 	):void {
-		if(isset($this->rejection)) {
-			$this->state = HttpPromiseInterface::REJECTED;
-		}
-		elseif(isset($this->resolvedValue)) {
-			$this->state = HttpPromiseInterface::FULFILLED;
-		}
-
 		if($onFulfilled || $onRejected) {
 			$this->then($onFulfilled, $onRejected);
 		}
@@ -125,18 +121,34 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 					}
 				}
 				else {
-					$value = $then->callOnFulfilled($this->resolvedValue);
-					if($value instanceof PromiseInterface) {
-						$value->then(function($resolvedValue) {
-							$this->resolvedValue = $resolvedValue;
-							$this->complete();
-						});
-						break;
-					}
+					if(isset($this->resolvedValue)) {
+						$value = $then->callOnFulfilled($this->resolvedValue);
 
-					$this->state = HttpPromiseInterface::FULFILLED;
-					if(!is_null($value)) {
-						$this->resolvedValue = $value;
+						if($value instanceof PromiseInterface) {
+							unset($this->resolvedValue);
+
+							array_push($this->pendingChain, $this->chain[0] ?? null);
+
+							$value->then(function($resolvedValue) {
+								$this->resolvedValue = $resolvedValue;
+								$then = array_pop($this->pendingChain);
+								if($then) {
+									$then->callOnFulfilled($this->resolvedValue);
+									$this->resolvedValue = null;
+								}
+								$this->complete();
+							});
+							break;
+						}
+
+						$this->state = HttpPromiseInterface::FULFILLED;
+						if(!is_null($value)) {
+							$this->resolvedValue = $value;
+						}
+					}
+					elseif($then instanceof FinallyChain
+					&& isset($this->rejection)) {
+						$then->callOnFulfilled($this->rejection);
 					}
 				}
 			}
@@ -145,9 +157,18 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 			}
 		}
 
-		if(!$emptyChain
-		&& $reason = array_shift($rejectedForwardQueue)) {
+		$reason = array_shift($rejectedForwardQueue);
+		if($reason && !$emptyChain) {
 			throw $reason;
+		}
+
+		if($emptyChain) {
+			if($reason) {
+				$this->state = HttpPromiseInterface::REJECTED;
+			}
+			else {
+				$this->state = HttpPromiseInterface::FULFILLED;
+			}
 		}
 	}
 
@@ -212,11 +233,9 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		}
 
 		$this->resolvedValue = $value;
-		$this->state = HttpPromiseInterface::FULFILLED;
 	}
 
 	private function reject(Throwable $reason):void {
 		$this->rejection = $reason;
-		$this->state = HttpPromiseInterface::REJECTED;
 	}
 }
