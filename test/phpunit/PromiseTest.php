@@ -3,10 +3,12 @@ namespace Gt\Promise\Test;
 
 use DateTime;
 use Exception;
+use Gt\Promise\Deferred;
 use Gt\Promise\Promise;
 use Gt\Promise\PromiseException;
 use Gt\Promise\PromiseResolvedWithAnotherPromiseException;
 use Gt\Promise\PromiseWaitTaskNotSetException;
+use Gt\Promise\Test\Helper\CustomPromise;
 use LogicException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -767,6 +769,63 @@ class PromiseTest extends TestCase {
 		self::assertCount(1, $receivedNames);
 		self::assertCount(1, $receivedAddresses);
 		self::assertEquals($addressBook["Bentley Buttersworth"], $receivedAddresses[0]);
+	}
+
+	/**
+	 * This simulates the type of promise that's created and returned from
+	 * functions such as BodyResponse::json()
+	 */
+	public function testCustomPromise_resolve() {
+		$newPromise = new CustomPromise();
+		$deferred = new Deferred();
+		$deferredPromise = $deferred->getPromise();
+		$deferredPromise->then(function($resolvedValue)use($newPromise) {
+			$newPromise->resolve($resolvedValue);
+		}, function($rejectedValue)use($newPromise) {
+			$newPromise->reject($rejectedValue);
+		});
+
+		$resolution = null;
+		$rejection = null;
+
+		$newPromise->then(function($resolvedValue)use(&$resolution) {
+			$resolution = $resolvedValue;
+		}, function($rejectedValue)use(&$rejection) {
+			$rejection = $rejectedValue;
+		});
+
+		// Do the actual deferred work:
+		$deferred->resolve("success");
+
+		self::assertSame("success", $resolution);
+		self::assertNull($rejection);
+	}
+
+	public function testCustomPromise_reject() {
+		$newPromise = new CustomPromise();
+		$deferred = new Deferred();
+		$deferredPromise = $deferred->getPromise();
+		$deferredPromise->then(function($resolvedValue)use($newPromise) {
+			$newPromise->resolve($resolvedValue);
+		}, function($rejectedValue)use($newPromise) {
+			$newPromise->reject($rejectedValue);
+		});
+
+		$resolution = null;
+		$rejection = null;
+
+		$newPromise->then(function($resolvedValue)use(&$resolution) {
+			$resolution = $resolvedValue;
+		}, function($rejectedValue)use(&$rejection) {
+			$rejection = $rejectedValue;
+		});
+
+		$exception = new \RuntimeException("OH NO");
+		// Do the actual deferred work:
+		$deferred->reject($exception);
+
+		self::assertNull($resolution);
+		self::assertSame($exception, $rejection);
 	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {
