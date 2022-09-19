@@ -10,16 +10,16 @@ use Http\Promise\Promise as HttpPromiseInterface;
 
 class Promise implements PromiseInterface, HttpPromiseInterface {
 	private string $state;
-	/** @var mixed */
-	private $resolvedValue;
+	private mixed $fulfilledValue;
+	private ?Throwable $rejectedReason;
+
 	/** @var Chainable[] */
 	private array $chain;
 	/** @var Chainable[] */
 	private array $pendingChain;
 	/** @var callable */
 	private $executor;
-	private ?Throwable $rejection;
-	/** @var callable */
+	/** @var ?callable */
 	private $waitTask;
 	private float $waitTaskDelay;
 
@@ -27,8 +27,8 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		$this->state = HttpPromiseInterface::PENDING;
 		$this->chain = [];
 		$this->pendingChain = [];
-		$this->rejection = null;
-		
+		$this->rejectedReason = null;
+
 		$this->executor = $executor;
 		$this->call();
 	}
@@ -97,10 +97,10 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 
 	private function handleChain():void {
 		$rejectedForwardQueue = [];
-		if(!is_null($this->rejection)) {
+		if(!is_null($this->rejectedReason)) {
 			array_push(
 				$rejectedForwardQueue,
-				$this->rejection
+				$this->rejectedReason
 			);
 		}
 
@@ -116,25 +116,25 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 						);
 					}
 					elseif(!is_null($rejectedResult)) {
-						$this->rejection = null;
-						$this->resolvedValue = $rejectedResult;
+						$this->rejectedReason = null;
+						$this->fulfilledValue = $rejectedResult;
 					}
 				}
 				else {
-					if(isset($this->resolvedValue)) {
-						$value = $then->callOnFulfilled($this->resolvedValue);
+					if(isset($this->fulfilledValue)) {
+						$value = $then->callOnFulfilled($this->fulfilledValue);
 
 						if($value instanceof PromiseInterface) {
-							unset($this->resolvedValue);
+							unset($this->fulfilledValue);
 
 							array_push($this->pendingChain, $this->chain[0] ?? null);
 
 							$value->then(function($resolvedValue) {
-								$this->resolvedValue = $resolvedValue;
+								$this->fulfilledValue = $resolvedValue;
 								$then = array_pop($this->pendingChain);
 								if($then) {
-									$then->callOnFulfilled($this->resolvedValue);
-									$this->resolvedValue = null;
+									$then->callOnFulfilled($this->fulfilledValue);
+									$this->fulfilledValue = null;
 								}
 								$this->complete();
 							});
@@ -143,12 +143,12 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 
 						$this->state = HttpPromiseInterface::FULFILLED;
 						if(!is_null($value)) {
-							$this->resolvedValue = $value;
+							$this->fulfilledValue = $value;
 						}
 					}
 					elseif($then instanceof FinallyChain
-					&& isset($this->rejection)) {
-						$then->callOnFulfilled($this->rejection);
+					&& isset($this->rejectedReason)) {
+						$then->callOnFulfilled($this->rejectedReason);
 					}
 				}
 			}
@@ -198,7 +198,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		$this->complete();
 
 		if($unwrap) {
-			$resolvedValue = $this->resolvedValue;
+			$resolvedValue = $this->fulfilledValue;
 			$this->then(function($value) use(&$resolvedValue):void {
 				$resolvedValue = $value;
 			});
@@ -228,14 +228,16 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	/** @param mixed $value */
 	private function resolve($value):void {
 		if($value instanceof PromiseInterface) {
-			$this->rejection = new PromiseResolvedWithAnotherPromiseException();
+			$this->rejectedReason = new PromiseResolvedWithAnotherPromiseException();
 			return;
 		}
 
-		$this->resolvedValue = $value;
+		$this->state = self::FULFILLED;
+		$this->fulfilledValue = $value;
 	}
 
 	private function reject(Throwable $reason):void {
-		$this->rejection = $reason;
+		$this->state = self::REJECTED;
+		$this->rejectedReason = $reason;
 	}
 }

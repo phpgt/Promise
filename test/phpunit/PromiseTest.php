@@ -799,6 +799,7 @@ class PromiseTest extends TestCase {
 
 		self::assertSame("success", $resolution);
 		self::assertNull($rejection);
+		self::assertSame(Promise::FULFILLED, $newPromise->getState());
 	}
 
 	public function testCustomPromise_reject() {
@@ -821,11 +822,12 @@ class PromiseTest extends TestCase {
 		});
 
 		$exception = new \RuntimeException("OH NO");
-		// Do the actual deferred work:
+		// The deferred work can fail, throwing the rejection:
 		$deferred->reject($exception);
 
 		self::assertNull($resolution);
 		self::assertSame($exception, $rejection);
+		self::assertSame(Promise::REJECTED, $newPromise->getState());
 	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {

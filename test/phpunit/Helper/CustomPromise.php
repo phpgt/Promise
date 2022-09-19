@@ -2,6 +2,7 @@
 namespace Gt\Promise\Test\Helper;
 
 use Exception;
+use Gt\Promise\Deferred;
 use Http\Promise\Promise as HttpPromise;
 use RuntimeException;
 use Throwable;
@@ -18,8 +19,9 @@ class CustomPromise implements HttpPromise {
 	public function then(
 		callable $onFulfilled = null,
 		callable $onRejected = null,
-	) {
-		$newPromise = new self();
+	):?HttpPromise {
+		$newDeferred = new Deferred();
+		$newPromise = $newDeferred->getPromise();
 
 		$onFulfilled = $onFulfilled
 			?? fn($resolvedValue) => $resolvedValue;
@@ -27,26 +29,27 @@ class CustomPromise implements HttpPromise {
 			?? fn(Throwable $exception) => $exception;
 
 		$this->onFulfilled = function(mixed $resolvedValue)
-		use($onFulfilled, $newPromise) {
+		use($onFulfilled, $newDeferred) {
 			try {
 				$return = $onFulfilled($resolvedValue);
 
 				if($return instanceof HttpPromise) {
-					$return->then(function($innerResolvedValue) use($newPromise) {
-						$newPromise->resolve($innerResolvedValue);
+					$return->then(function($innerResolvedValue) use($newDeferred) {
+						$newDeferred->resolve($innerResolvedValue);
 					});
 				}
 				else {
-					$newPromise->resolve($return ?? $resolvedValue);
+					$newDeferred->resolve($return ?? $resolvedValue);
 				}
 			}
 			catch(Exception $exception) {
-				$newPromise->reject($exception);
+				$newDeferred->reject($exception);
 			}
 		};
 		$this->onRejected = function(Throwable $rejectedReason)
-		use($onRejected, $newPromise) {
-// TODO.
+		use($onRejected, $newDeferred) {
+			$return = $onRejected($rejectedReason);
+			$newDeferred->reject($return ?? $rejectedReason);
 		};
 
 		if($this->state === self::FULFILLED) {
