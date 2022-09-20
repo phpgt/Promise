@@ -50,6 +50,9 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 			));
 		}
 
+		if(isset($this->fulfilledValue) || isset($this->rejectedReason)) {
+			$this->complete();
+		}
 		return $this;
 	}
 
@@ -82,8 +85,12 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		callable $onFulfilled = null,
 		callable $onRejected = null
 	):void {
-		if($onFulfilled || $onRejected) {
+		if(isset($onFulfilled)) {
 			$this->then($onFulfilled, $onRejected);
+		}
+		if(isset($onRejected)) {
+			$this->then(null, $onRejected);
+			$this->catch($onRejected);
 		}
 
 		$this->sortChain();

@@ -9,6 +9,7 @@ use Gt\Promise\PromiseException;
 use Gt\Promise\PromiseResolvedWithAnotherPromiseException;
 use Gt\Promise\PromiseWaitTaskNotSetException;
 use Gt\Promise\Test\Helper\CustomPromise;
+use http\Exception\RuntimeException;
 use LogicException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -403,15 +404,98 @@ class PromiseTest extends TestCase {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$sut = $promiseContainer->getPromise();
 
+		$expectedResolution = "Resolve!";
+		$caughtResolutions = [];
 		$expectedReason = new \RuntimeException("This is expected");
 		$caughtReasons = [];
 
-		$sut->then(function($value)use ($expectedReason) {
+		$sut->then(function($value)use ($expectedReason, &$caughtResolutions) {
+			array_push($caughtResolutions, $value);
 			throw $expectedReason;
 		})->catch(function(Throwable $reason)use(&$caughtReasons) {
 			array_push($caughtReasons, $reason);
 		});
 
+		$promiseContainer->resolve($expectedResolution);
+
+		self::assertCount(1, $caughtResolutions);
+		self::assertSame($expectedResolution, $caughtResolutions[0]);
+		self::assertCount(1, $caughtReasons);
+		self::assertSame($expectedReason, $caughtReasons[0]);
+	}
+
+	public function testCatchRejectionWhenExceptionIsThrownInResolutionFunctionUsingNestedPromises() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$newDeferred = new Deferred();
+		$newPromise = $newDeferred->getPromise();
+
+		$expectedResolution = "Resolve!";
+		$caughtResolutions = [];
+		$expectedReason = new \RuntimeException("This is expected");
+		$caughtReasons = [];
+
+		$sut->then(function($value)use ($expectedReason) {
+			throw $expectedReason;
+		})->catch(function(Throwable $reason)use($newDeferred) {
+			$newDeferred->reject($reason);
+		});
+
+		$newPromise->then(function($value)use ($expectedReason, &$caughtResolutions) {
+			array_push($caughtResolutions, $value);
+		})->catch(function(Throwable $reason)use (&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		$promiseContainer->resolve($expectedResolution);
+
+		self::assertEmpty($caughtResolutions);
+		self::assertCount(1, $caughtReasons);
+		self::assertSame($expectedReason, $caughtReasons[0]);
+	}
+
+	public function testCatchRejectionWhenExceptionIsThrownInResolutionFunctionUsingNestedAndChainedPromises() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$newDeferred = new Deferred();
+		$newPromise = $newDeferred->getPromise();
+
+		$expectedResolution = "Resolve!";
+		$caughtResolutions = [];
+		$expectedReason = new \RuntimeException("This is expected");
+		$caughtReasons = [];
+
+		$chainedPromise = $sut->then(function($value)use ($expectedReason) {
+			$chainedDeferred = new Deferred();
+
+			$chainedPromise = $chainedDeferred->getPromise();
+			$chainedPromise->then(function($value)use($expectedReason) {
+				throw $expectedReason;
+			})->catch(function(Throwable $reason)use($chainedDeferred) {
+				$chainedDeferred->reject($reason);
+			});
+
+			$chainedDeferred->resolve($value);
+			return $chainedPromise;
+		});
+
+		$chainedPromise->then(function($value)use(&$caughtResolutions) {
+			array_push($caughtResolutions, $value);
+		})->catch(function(Throwable $reason)use(&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		$newPromise->then(function($value)use (&$caughtResolutions) {
+			array_push($caughtResolutions, $value);
+		})->catch(function(Throwable $reason)use (&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		$promiseContainer->resolve($expectedResolution);
+
+		self::assertEmpty($caughtResolutions);
 		self::assertCount(1, $caughtReasons);
 		self::assertSame($expectedReason, $caughtReasons[0]);
 	}
