@@ -399,6 +399,23 @@ class PromiseTest extends TestCase {
 		$promiseContainer->reject($exception);
 	}
 
+	public function testCatchRejectionWhenExceptionIsThrownInResolutionFunction() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$expectedReason = new \RuntimeException("This is expected");
+		$caughtReasons = [];
+
+		$sut->then(function($value)use ($expectedReason) {
+			throw $expectedReason;
+		})->catch(function(Throwable $reason)use(&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		self::assertCount(1, $caughtReasons);
+		self::assertSame($expectedReason, $caughtReasons[0]);
+	}
+
 	public function testMatchingTypedCatchRejectionHandlerCanHandleInternalTypeErrors() {
 		$exception = new RangeException();
 		$promiseContainer = $this->getTestPromiseContainer();
@@ -804,6 +821,7 @@ class PromiseTest extends TestCase {
 
 	public function testCustomPromise_reject() {
 		$newPromise = new CustomPromise();
+
 		$deferred = new Deferred();
 		$deferredPromise = $deferred->getPromise();
 		$deferredPromise->then(function($resolvedValue)use($newPromise) {
