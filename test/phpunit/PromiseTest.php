@@ -9,11 +9,10 @@ use Gt\Promise\PromiseException;
 use Gt\Promise\PromiseResolvedWithAnotherPromiseException;
 use Gt\Promise\PromiseWaitTaskNotSetException;
 use Gt\Promise\Test\Helper\CustomPromise;
-use http\Exception\RuntimeException;
-use LogicException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RangeException;
+use RuntimeException;
 use stdClass;
 use Throwable;
 use Http\Promise\Promise as HttpPromiseInterface;
@@ -923,7 +922,7 @@ class PromiseTest extends TestCase {
 			$rejection = $rejectedValue;
 		});
 
-		$exception = new \RuntimeException("OH NO");
+		$exception = new RuntimeException("OH NO");
 		// The deferred work can fail, throwing the rejection:
 		$deferred->reject($exception);
 
