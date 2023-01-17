@@ -3,14 +3,16 @@ namespace Gt\Promise\Test;
 
 use DateTime;
 use Exception;
+use Gt\Promise\Deferred;
 use Gt\Promise\Promise;
 use Gt\Promise\PromiseException;
 use Gt\Promise\PromiseResolvedWithAnotherPromiseException;
 use Gt\Promise\PromiseWaitTaskNotSetException;
-use LogicException;
+use Gt\Promise\Test\Helper\CustomPromise;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RangeException;
+use RuntimeException;
 use stdClass;
 use Throwable;
 use Http\Promise\Promise as HttpPromiseInterface;
@@ -397,6 +399,106 @@ class PromiseTest extends TestCase {
 		$promiseContainer->reject($exception);
 	}
 
+	public function testCatchRejectionWhenExceptionIsThrownInResolutionFunction() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$expectedResolution = "Resolve!";
+		$caughtResolutions = [];
+		$expectedReason = new \RuntimeException("This is expected");
+		$caughtReasons = [];
+
+		$sut->then(function($value)use ($expectedReason, &$caughtResolutions) {
+			array_push($caughtResolutions, $value);
+			throw $expectedReason;
+		})->catch(function(Throwable $reason)use(&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		$promiseContainer->resolve($expectedResolution);
+
+		self::assertCount(1, $caughtResolutions);
+		self::assertSame($expectedResolution, $caughtResolutions[0]);
+		self::assertCount(1, $caughtReasons);
+		self::assertSame($expectedReason, $caughtReasons[0]);
+	}
+
+	public function testCatchRejectionWhenExceptionIsThrownInResolutionFunctionUsingNestedPromises() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$newDeferred = new Deferred();
+		$newPromise = $newDeferred->getPromise();
+
+		$expectedResolution = "Resolve!";
+		$caughtResolutions = [];
+		$expectedReason = new \RuntimeException("This is expected");
+		$caughtReasons = [];
+
+		$sut->then(function($value)use ($expectedReason) {
+			throw $expectedReason;
+		})->catch(function(Throwable $reason)use($newDeferred) {
+			$newDeferred->reject($reason);
+		});
+
+		$newPromise->then(function($value)use ($expectedReason, &$caughtResolutions) {
+			array_push($caughtResolutions, $value);
+		})->catch(function(Throwable $reason)use (&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		$promiseContainer->resolve($expectedResolution);
+
+		self::assertEmpty($caughtResolutions);
+		self::assertCount(1, $caughtReasons);
+		self::assertSame($expectedReason, $caughtReasons[0]);
+	}
+
+	public function testCatchRejectionWhenExceptionIsThrownInResolutionFunctionUsingNestedAndChainedPromises() {
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$newDeferred = new Deferred();
+		$newPromise = $newDeferred->getPromise();
+
+		$expectedResolution = "Resolve!";
+		$caughtResolutions = [];
+		$expectedReason = new \RuntimeException("This is expected");
+		$caughtReasons = [];
+
+		$chainedPromise = $sut->then(function($value)use ($expectedReason) {
+			$chainedDeferred = new Deferred();
+
+			$chainedPromise = $chainedDeferred->getPromise();
+			$chainedPromise->then(function($value)use($expectedReason) {
+				throw $expectedReason;
+			})->catch(function(Throwable $reason)use($chainedDeferred) {
+				$chainedDeferred->reject($reason);
+			});
+
+			$chainedDeferred->resolve($value);
+			return $chainedPromise;
+		});
+
+		$chainedPromise->then(function($value)use(&$caughtResolutions) {
+			array_push($caughtResolutions, $value);
+		})->catch(function(Throwable $reason)use(&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		$newPromise->then(function($value)use (&$caughtResolutions) {
+			array_push($caughtResolutions, $value);
+		})->catch(function(Throwable $reason)use (&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		$promiseContainer->resolve($expectedResolution);
+
+		self::assertEmpty($caughtResolutions);
+		self::assertCount(1, $caughtReasons);
+		self::assertSame($expectedReason, $caughtReasons[0]);
+	}
+
 	public function testMatchingTypedCatchRejectionHandlerCanHandleInternalTypeErrors() {
 		$exception = new RangeException();
 		$promiseContainer = $this->getTestPromiseContainer();
@@ -767,6 +869,66 @@ class PromiseTest extends TestCase {
 		self::assertCount(1, $receivedNames);
 		self::assertCount(1, $receivedAddresses);
 		self::assertEquals($addressBook["Bentley Buttersworth"], $receivedAddresses[0]);
+	}
+
+	/**
+	 * This simulates the type of promise that's created and returned from
+	 * functions such as BodyResponse::json()
+	 */
+	public function testCustomPromise_resolve() {
+		$newPromise = new CustomPromise();
+		$deferred = new Deferred();
+		$deferredPromise = $deferred->getPromise();
+		$deferredPromise->then(function($resolvedValue)use($newPromise) {
+			$newPromise->resolve($resolvedValue);
+		}, function($rejectedValue)use($newPromise) {
+			$newPromise->reject($rejectedValue);
+		});
+
+		$resolution = null;
+		$rejection = null;
+
+		$newPromise->then(function($resolvedValue)use(&$resolution) {
+			$resolution = $resolvedValue;
+		}, function($rejectedValue)use(&$rejection) {
+			$rejection = $rejectedValue;
+		});
+
+		// Do the actual deferred work:
+		$deferred->resolve("success");
+
+		self::assertSame("success", $resolution);
+		self::assertNull($rejection);
+		self::assertSame(Promise::FULFILLED, $newPromise->getState());
+	}
+
+	public function testCustomPromise_reject() {
+		$newPromise = new CustomPromise();
+
+		$deferred = new Deferred();
+		$deferredPromise = $deferred->getPromise();
+		$deferredPromise->then(function($resolvedValue)use($newPromise) {
+			$newPromise->resolve($resolvedValue);
+		}, function($rejectedValue)use($newPromise) {
+			$newPromise->reject($rejectedValue);
+		});
+
+		$resolution = null;
+		$rejection = null;
+
+		$newPromise->then(function($resolvedValue)use(&$resolution) {
+			$resolution = $resolvedValue;
+		}, function($rejectedValue)use(&$rejection) {
+			$rejection = $rejectedValue;
+		});
+
+		$exception = new RuntimeException("OH NO");
+		// The deferred work can fail, throwing the rejection:
+		$deferred->reject($exception);
+
+		self::assertNull($resolution);
+		self::assertSame($exception, $rejection);
+		self::assertSame(Promise::REJECTED, $newPromise->getState());
 	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {
