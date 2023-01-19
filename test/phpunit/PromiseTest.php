@@ -931,6 +931,30 @@ class PromiseTest extends TestCase {
 		self::assertSame(Promise::REJECTED, $newPromise->getState());
 	}
 
+	public function testPromise_chain() {
+		$custom = new CustomPromise();
+		$deferred = new Deferred();
+		$deferredPromise = $deferred->getPromise();
+		$deferredPromise->then(function($resolvedValue)use($custom) {
+			$custom->resolve($resolvedValue);
+		}, function($rejectedValue)use($custom) {
+			$custom->reject($rejectedValue);
+		});
+
+		$newDeferred = null;
+		$receivedMessage = null;
+
+		$custom->then(function()use(&$newDeferred) {
+			$newDeferred = new Deferred();
+			return $newDeferred->getPromise();
+		})->then(function(string $message)use(&$receivedMessage) {
+			$receivedMessage = $message;
+		});
+
+		$deferred->resolve("THIS HAS BEEN RESOLVED!");
+		self::assertSame("THIS HAS BEEN RESOLVED", $receivedMessage);
+	}
+
 	protected function getTestPromiseContainer():TestPromiseContainer {
 		$resolveCallback = null;
 		$rejectCallback = null;
