@@ -3,11 +3,12 @@ namespace Gt\Promise\Test\Helper;
 
 use Exception;
 use Gt\Promise\Deferred;
-use Http\Promise\Promise as HttpPromise;
+use Gt\Promise\PromiseInterface;
+use Http\Promise\Promise as HttpPromiseInterface;
 use RuntimeException;
 use Throwable;
 
-class CustomPromise implements HttpPromise {
+class CustomPromise implements HttpPromiseInterface {
 	private string $state = self::PENDING;
 	private mixed $resolvedValue;
 	private \Throwable $rejectedReason;
@@ -19,7 +20,7 @@ class CustomPromise implements HttpPromise {
 	public function then(
 		callable $onFulfilled = null,
 		callable $onRejected = null,
-	):?HttpPromise {
+	):?PromiseInterface {
 		$newDeferred = new Deferred();
 		$newPromise = $newDeferred->getPromise();
 
@@ -33,7 +34,7 @@ class CustomPromise implements HttpPromise {
 			try {
 				$return = $onFulfilled($resolvedValue);
 
-				if($return instanceof HttpPromise) {
+				if($return instanceof HttpPromiseInterface) {
 					$return->then(function($innerResolvedValue) use($newDeferred) {
 						$newDeferred->resolve($innerResolvedValue);
 					});

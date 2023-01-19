@@ -827,6 +827,7 @@ class PromiseTest extends TestCase {
 		$complete = null;
 		$innerFulfill = null;
 		$innerReject = null;
+		/** @var null|callable $innerComplete */
 		$innerComplete = null;
 		$innerPromise = null;
 
@@ -929,6 +930,119 @@ class PromiseTest extends TestCase {
 		self::assertNull($resolution);
 		self::assertSame($exception, $rejection);
 		self::assertSame(Promise::REJECTED, $newPromise->getState());
+	}
+
+	public function testPromise_rejectChain() {
+		$thenCalls = [];
+		$catchCalls = [];
+
+		$deferred = new Deferred();
+		$deferredPromise = $deferred->getPromise();
+		$deferredPromise->then(function($resolvedValue)use(&$thenCalls) {
+			array_push($thenCalls, $resolvedValue);
+		})->catch(function(Throwable $reason)use(&$catchCalls) {
+			array_push($catchCalls, $reason);
+		});
+
+		$innerDeferred = new Deferred();
+		$innerPromise = $innerDeferred->getPromise();
+
+		$rejection = new Exception("test rejection");
+		$innerPromise->then(function(string $message)use($rejection) {
+			if(!$message) {
+				throw $rejection;
+			}
+		})->catch(function(Throwable $reason)use($deferred) {
+			$deferred->reject($reason);
+		});
+
+		$innerDeferred->resolve("");
+
+		self::assertCount(0, $thenCalls);
+		self::assertCount(1, $catchCalls);
+	}
+
+	/**
+	 * This test emulates how PHP.Gt/Fetch performs the async request.
+	 */
+	public function testPromise_emulateHttpFetch():void {
+		/** @var Deferred|null $deferredToResolveAfterXCalls */
+		$deferredToResolveAfterXCalls = null;
+		$callCount = 0;
+		$limit = rand(5, 10);
+		$active = false;
+		$expectedException = new Exception("Something went wrong!");
+		/** @var Deferred|null $innerDeferred */
+		$innerDeferred = null;
+
+		/**
+		 * If this is called with no Deferred value, the callCount will
+		 * increment. When $callCount reaches the limit, the $deferred
+		 * will resolve with the passed in $uri.
+		 */
+		$requestResolver = function(
+			string $uri,
+			?Deferred $deferred = null,
+		)use(
+			&$deferredToResolveAfterXCalls,
+			&$callCount,
+			$limit,
+			&$active,
+			$expectedException,
+			&$innerDeferred,
+		):void {
+			if($deferred) {
+				$deferredToResolveAfterXCalls = $deferred;
+			}
+
+			if($callCount < $limit) {
+				$callCount++;
+				$active = true;
+				$innerDeferred = new Deferred();
+			}
+			else {
+				$active = false;
+				$newPromise = $innerDeferred->getPromise();
+				$newPromise->then(function(mixed $resolvedValue)use($expectedException, $innerDeferred) {
+					if($resolvedValue) {
+						$innerDeferred->reject($expectedException);
+					}
+				})->catch(function(Throwable $reason)use($deferredToResolveAfterXCalls) {
+					$deferredToResolveAfterXCalls->reject($reason);
+				});
+			}
+		};
+
+		$deferredWithinFetch = null;
+		$fetch = function(string $uri)use($requestResolver, &$deferredWithinFetch):Promise {
+			$deferredWithinFetch = new Deferred();
+			$promise = $deferredWithinFetch->getPromise();
+			call_user_func($requestResolver, $uri, $deferredWithinFetch);
+			return $promise;
+		};
+
+		$thenCalls = [];
+		$catchCalls = [];
+		$fetch("https://example.com")->then(function(mixed $resolvedValue)use(&$thenCalls) {
+			array_push($thenCalls, $resolvedValue);
+		})->catch(function(Throwable $reason)use(&$catchCalls) {
+			array_push($catchCalls, $reason);
+		});
+
+		$uri = "https://example.com";
+		$requestResolver($uri, $deferredWithinFetch);
+
+		while($active) {
+			$requestResolver($uri, $deferredWithinFetch);
+
+			if($innerDeferred) {
+				$innerDeferred->resolve($uri);
+			}
+		}
+
+		self::assertEmpty($thenCalls);
+		self::assertCount(1, $catchCalls);
+		self::assertSame($expectedException, $catchCalls[0]);
 	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {
