@@ -1045,6 +1045,56 @@ class PromiseTest extends TestCase {
 		self::assertSame($expectedException, $catchCalls[0]);
 	}
 
+	public function testCatch_manuallyThrowException():void {
+		$deferred = new Deferred();
+		$promise = $deferred->getPromise();
+
+		$thenCalls = [];
+		$catchCalls = [];
+		$promise->then(function($resolvedValue)use(&$thenCalls) {
+			array_push($thenCalls, $resolvedValue);
+			throw new Exception("This should trigger the catch function");
+		})->catch(function(Throwable $reason)use(&$catchCalls) {
+			array_push($catchCalls, $reason);
+		});
+
+		$deferred->resolve("test");
+
+		self::assertCount(1, $thenCalls);
+		self::assertCount(1, $catchCalls);
+	}
+
+	public function testCatch_manuallyThrowException_nested():void {
+		$deferred = new Deferred();
+		$promise = $deferred->getPromise();
+
+		$thenCalls = [];
+		$catchCalls = [];
+		$promise->then(function($resolvedValue)use(&$thenCalls) {
+			array_push($thenCalls, $resolvedValue);
+
+			$newDeferred = new Deferred();
+			$newPromise = $newDeferred->getPromise();
+
+			try {
+				throw new Exception("Exception thrown from inner function!");
+				$newDeferred->resolve("resolved from inner function!");
+			}
+			catch(Exception $exception) {
+				$newDeferred->reject($exception);
+			}
+
+			return $newPromise;
+		})->catch(function(Throwable $reason)use(&$catchCalls) {
+			array_push($catchCalls, $reason);
+		});
+
+		$deferred->resolve("test");
+
+		self::assertCount(1, $thenCalls);
+		self::assertCount(1, $catchCalls);
+	}
+
 	protected function getTestPromiseContainer():TestPromiseContainer {
 		$resolveCallback = null;
 		$rejectCallback = null;
