@@ -18,21 +18,21 @@ class CustomPromise implements HttpPromiseInterface {
 	private $onRejected;
 
 	public function then(
-		callable $onFulfilled = null,
+		callable $onResolved = null,
 		callable $onRejected = null,
 	):?PromiseInterface {
 		$newDeferred = new Deferred();
 		$newPromise = $newDeferred->getPromise();
 
-		$onFulfilled = $onFulfilled
+		$onResolved = $onResolved
 			?? fn($resolvedValue) => $resolvedValue;
 		$onRejected = $onRejected
 			?? fn(Throwable $exception) => $exception;
 
 		$this->onFulfilled = function(mixed $resolvedValue)
-		use($onFulfilled, $newDeferred) {
+		use($onResolved, $newDeferred) {
 			try {
-				$return = $onFulfilled($resolvedValue);
+				$return = $onResolved($resolvedValue);
 
 				if($return instanceof HttpPromiseInterface) {
 					$return->then(function($innerResolvedValue) use($newDeferred) {

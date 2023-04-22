@@ -10,7 +10,7 @@ use Http\Promise\Promise as HttpPromiseInterface;
 
 class Promise implements PromiseInterface, HttpPromiseInterface {
 	private string $state;
-	private mixed $fulfilledValue;
+	private mixed $resolvedValue;
 	private ?Throwable $rejectedReason;
 
 	/** @var Chainable[] */
@@ -34,23 +34,23 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	}
 
 	public function then(
-		callable $onFulfilled = null,
+		callable $onResolved = null,
 		callable $onRejected = null
 	):PromiseInterface {
-		if($onFulfilled) {
+		if($onResolved) {
 			array_push($this->chain, new ThenChain(
-				$onFulfilled,
+				$onResolved,
 				$onRejected
 			));
 		}
 		elseif($onRejected) {
 			array_push($this->chain, new CatchChain(
-				$onFulfilled,
+				$onResolved,
 				$onRejected
 			));
 		}
 
-		if(isset($this->fulfilledValue) || isset($this->rejectedReason)) {
+		if(isset($this->resolvedValue) || isset($this->rejectedReason)) {
 			$this->complete();
 		}
 		return $this;
@@ -63,17 +63,17 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	}
 
 	public function finally(
-		callable $onFulfilledOrRejected
+		callable $onResolvedOrRejected
 	):PromiseInterface {
-		if($onFulfilledOrRejected instanceof Throwable) {
+		if($onResolvedOrRejected instanceof Throwable) {
 			array_push($this->chain, new FinallyChain(
 				null,
-				$onFulfilledOrRejected
+				$onResolvedOrRejected
 			));
 		}
 		else {
 			array_push($this->chain, new FinallyChain(
-				$onFulfilledOrRejected,
+				$onResolvedOrRejected,
 				null
 			));
 		}
@@ -82,17 +82,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	}
 
 	private function complete(
-		callable $onFulfilled = null,
-		callable $onRejected = null
 	):void {
-		if(isset($onFulfilled)) {
-			$this->then($onFulfilled, $onRejected);
-		}
-		if(isset($onRejected)) {
-			$this->then(null, $onRejected);
-			$this->catch($onRejected);
-		}
-
 		$this->sortChain();
 		$this->handleChain();
 	}
@@ -124,24 +114,24 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 					}
 					elseif(!is_null($rejectedResult)) {
 						$this->rejectedReason = null;
-						$this->fulfilledValue = $rejectedResult;
+						$this->resolvedValue = $rejectedResult;
 					}
 				}
 				else {
-					if(isset($this->fulfilledValue)) {
-						$value = $then->callOnFulfilled($this->fulfilledValue);
+					if(isset($this->resolvedValue)) {
+						$value = $then->callOnResolved($this->resolvedValue);
 
 						if($value instanceof PromiseInterface) {
-							unset($this->fulfilledValue);
+							unset($this->resolvedValue);
 
 							array_push($this->pendingChain, $this->chain[0] ?? null);
 
 							$value->then(function($resolvedValue) {
-								$this->fulfilledValue = $resolvedValue;
+								$this->resolvedValue = $resolvedValue;
 								$then = array_pop($this->pendingChain);
 								if($then) {
-									$then->callOnFulfilled($this->fulfilledValue);
-									$this->fulfilledValue = null;
+									$then->callOnResolved($this->resolvedValue);
+									$this->resolvedValue = null;
 								}
 								$this->complete();
 							});
@@ -150,12 +140,12 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 
 						$this->state = HttpPromiseInterface::FULFILLED;
 						if(!is_null($value)) {
-							$this->fulfilledValue = $value;
+							$this->resolvedValue = $value;
 						}
 					}
 					elseif($then instanceof FinallyChain
 					&& isset($this->rejectedReason)) {
-						$then->callOnFulfilled($this->rejectedReason);
+						$then->callOnResolved($this->rejectedReason);
 					}
 				}
 			}
@@ -205,7 +195,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		$this->complete();
 
 		if($unwrap) {
-			$resolvedValue = $this->fulfilledValue;
+			$resolvedValue = $this->resolvedValue;
 			$this->then(function($value) use(&$resolvedValue):void {
 				$resolvedValue = $value;
 			});
@@ -240,7 +230,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		}
 
 		$this->state = self::FULFILLED;
-		$this->fulfilledValue = $value;
+		$this->resolvedValue = $value;
 	}
 
 	private function reject(Throwable $reason):void {

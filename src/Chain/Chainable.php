@@ -7,32 +7,32 @@ use TypeError;
 
 abstract class Chainable {
 	/** @var callable|null */
-	private $onFulfilled;
+	private $onResolved;
 	/** @var callable|null */
 	private $onRejected;
 
 	public function __construct(
-		?callable $onFulfilled,
+		?callable $onResolved,
 		?callable $onRejected
 	) {
-		$this->onFulfilled = $onFulfilled;
+		$this->onResolved = $onResolved;
 		$this->onRejected = $onRejected;
 	}
 
 	/**
 	 * @param mixed|null $value
-	 * @return mixed|null New fulfilled value
+	 * @return mixed|null New resolved value
 	 */
-	public function callOnFulfilled($value) {
-		if(is_null($this->onFulfilled)) {
+	public function callOnResolved($value) {
+		if(is_null($this->onResolved)) {
 			return null;
 		}
 
-		return call_user_func($this->onFulfilled, $value);
+		return call_user_func($this->onResolved, $value);
 	}
 
 	/**
-	 * @return mixed|Throwable|null New fulfilled value
+	 * @return mixed|Throwable|null New resolved value
 	 * @noinspection PhpMissingReturnTypeInspection
 	 */
 	public function callOnRejected(Throwable $reason) {

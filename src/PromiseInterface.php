@@ -6,8 +6,8 @@ interface PromiseInterface {
 	 * The then() method returns a Promise. It takes up to two arguments:
 	 * callback functions for the success and failure cases of the Promise.
 	 *
-	 * If supplied, $onFulfilled will be invoked once the promise is
-	 * fulfilled. The callback will be passed the resulting value as its
+	 * If supplied, $onResolved will be invoked once the promise is
+	 * resolved. The callback will be passed the resulting value as its
 	 * only argument.
 	 *
 	 * If supplied, $onRejected will be invoked once the promise is
@@ -15,7 +15,7 @@ interface PromiseInterface {
 	 * only argument.
 	 */
 	public function then(
-		callable $onFulfilled = null,
+		callable $onResolved = null,
 		callable $onRejected = null
 	):PromiseInterface;
 
@@ -34,19 +34,19 @@ interface PromiseInterface {
 
 	/**
 	 * The finally() method returns a Promise. When the promise is settled,
-	 * i.e either fulfilled or rejected, the specified callback function is
+	 * i.e either resolved or rejected, the specified callback function is
 	 * executed. This provides a way for code to be run whether the promise
-	 * was fulfilled successfully or rejected once the Promise has been
+	 * was resolved successfully or rejected once the Promise has been
 	 * dealt with.
 	 *
 	 * This helps to avoid duplicating code in both the promise's
 	 * then() and catch() handlers.
 	 *
-	 * $onFulfilledOrRejected will be called, with no arguments, when the
-	 * promise is either fulfilled or rejected.
+	 * $onResolvedOrRejected will be called, with no arguments, when the
+	 * promise is either resolved or rejected.
 	 */
 	public function finally(
-		callable $onFulfilledOrRejected
+		callable $onResolvedOrRejected
 	):PromiseInterface;
 
 	public function getState():string;
