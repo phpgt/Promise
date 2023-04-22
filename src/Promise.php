@@ -6,6 +6,7 @@ use Gt\Promise\Chain\Chainable;
 use Gt\Promise\Chain\FinallyChain;
 use Gt\Promise\Chain\ThenChain;
 use Throwable;
+use TypeError;
 
 class Promise implements PromiseInterface {
 	private PromiseState $state;
@@ -29,55 +30,72 @@ class Promise implements PromiseInterface {
 		$this->rejectedReason = null;
 
 		$this->executor = $executor;
-		$this->call();
+		$this->callExecutor();
 	}
 
-	public function then(
-		callable $onResolved = null,
-		callable $onRejected = null
-	):PromiseInterface {
-		if($onResolved) {
-			array_push($this->chain, new ThenChain(
-				$onResolved,
-				$onRejected
-			));
-		}
-		elseif($onRejected) {
-			array_push($this->chain, new CatchChain(
-				$onResolved,
-				$onRejected
-			));
-		}
-
-		if(isset($this->resolvedValue) || isset($this->rejectedReason)) {
-			$this->complete();
-		}
+	public function then(callable $onResolved):PromiseInterface {
+		array_push($this->chain, new ThenChain(
+			$onResolved,
+			null,
+		));
+		$this->tryComplete();
 		return $this;
 	}
 
-	public function catch(
-		callable $onRejected
-	):PromiseInterface {
-		return $this->then(null, $onRejected);
+	public function catch(callable $onRejected):PromiseInterface {
+		array_push($this->chain, new CatchChain(
+			null,
+			$onRejected
+		));
+		$this->tryComplete();
+		return $this;
 	}
 
 	public function finally(
 		callable $onResolvedOrRejected
 	):PromiseInterface {
-		if($onResolvedOrRejected instanceof Throwable) {
-			array_push($this->chain, new FinallyChain(
-				null,
-				$onResolvedOrRejected
-			));
-		}
-		else {
-			array_push($this->chain, new FinallyChain(
-				$onResolvedOrRejected,
-				null
-			));
-		}
+		array_push($this->chain, new FinallyChain(
+			$onResolvedOrRejected,
+			$onResolvedOrRejected
+		));
 
 		return $this;
+	}
+
+	private function callExecutor():void {
+		call_user_func(
+			$this->executor,
+			function(mixed $value = null) {
+				$this->resolve($value);
+			},
+			function(Throwable $reason) {
+				$this->reject($reason);
+			},
+			function() {
+				$this->complete();
+			}
+		);
+	}
+
+	private function resolve(mixed $value):void {
+		if($value instanceof PromiseInterface) {
+			$this->reject(new PromiseResolvedWithAnotherPromiseException());
+			return;
+		}
+
+		$this->state = PromiseState::RESOLVED;
+		$this->resolvedValue = $value;
+	}
+
+	private function reject(Throwable $reason):void {
+		$this->state = PromiseState::REJECTED;
+		$this->rejectedReason = $reason;
+	}
+
+	private function tryComplete():void {
+		if(isset($this->resolvedValue) || isset($this->rejectedReason)) {
+			$this->complete();
+		}
 	}
 
 	private function complete(
@@ -92,83 +110,70 @@ class Promise implements PromiseInterface {
 	}
 
 	private function handleChain():void {
-		$rejectedForwardQueue = [];
-		if(!is_null($this->rejectedReason)) {
-			array_push(
-				$rejectedForwardQueue,
-				$this->rejectedReason
-			);
-		}
-
-		$emptyChain = empty($this->chain);
-		while($then = array_shift($this->chain)) {
+		while($chainItem = array_shift($this->chain)) {
 			try {
-				if($reason = array_shift($rejectedForwardQueue)) {
-					$rejectedResult = $then->callOnRejected($reason);
-					if($rejectedResult instanceof Throwable) {
-						array_push(
-							$rejectedForwardQueue,
-							$rejectedResult
-						);
-					}
-					elseif(!is_null($rejectedResult)) {
-						$this->rejectedReason = null;
-						$this->resolvedValue = $rejectedResult;
-					}
-				}
-				else {
+				if($chainItem instanceof ThenChain && $this->getState() === PromiseState::RESOLVED) {
 					if(isset($this->resolvedValue)) {
-						$value = $then->callOnResolved($this->resolvedValue);
-
-						if($value instanceof PromiseInterface) {
+						$newValue = $chainItem->callOnResolved($this->resolvedValue);
+						if($newValue instanceof PromiseInterface) {
 							unset($this->resolvedValue);
-
 							array_push($this->pendingChain, $this->chain[0] ?? null);
-
-							$value->then(function($resolvedValue) {
+							$newValue->then(function(mixed $resolvedValue) {
 								$this->resolvedValue = $resolvedValue;
-								$then = array_pop($this->pendingChain);
-								if($then) {
-									$then->callOnResolved($this->resolvedValue);
-									$this->resolvedValue = null;
+								if($chainItem = array_pop($this->pendingChain)) {
+									$chainItem->callOnResolved($this->resolvedValue);
+									unset($this->resolvedValue);
 								}
 								$this->complete();
 							});
-							break;
 						}
-
-						$this->state = PromiseState::RESOLVED;
-						if(!is_null($value)) {
-							$this->resolvedValue = $value;
+						elseif(!is_null($newValue)) {
+							$this->resolve($newValue);
 						}
 					}
-					elseif($then instanceof FinallyChain
-					&& isset($this->rejectedReason)) {
-						$then->callOnResolved($this->rejectedReason);
+				}
+				if($chainItem instanceof CatchChain && $this->getState() === PromiseState::REJECTED) {
+					$newValue = $chainItem->callOnRejected($this->rejectedReason);
+
+					if(!is_null($newValue)) {
+						if($newValue instanceof Throwable) {
+							$this->reject($newValue);
+						}
+						else {
+							$this->resolve($newValue);
+						}
+					}
+				}
+				if($chainItem instanceof FinallyChain) {
+					if($this->getState() === PromiseState::RESOLVED) {
+						$chainItem->callOnResolved($this->resolvedValue);
+					}
+					else {
+						$chainItem->callOnRejected($this->rejectedReason);
 					}
 				}
 			}
-			catch(Throwable $reason) {
-				array_push($rejectedForwardQueue, $reason);
-			}
-		}
-
-		$reason = array_shift($rejectedForwardQueue);
-		if($reason && !$emptyChain) {
-			throw $reason;
-		}
-
-		if($emptyChain) {
-			if($reason) {
-				$this->state = PromiseState::REJECTED;
-			}
-			else {
-				$this->state = PromiseState::RESOLVED;
+			catch(Throwable $rejection) {
+// When the chain is being handled, each item in the chain will be called.
+// If there's a rejection, we will pass it to the next item in the chain, unless
+// the chain is empty - at which point we must throw the rejection to the main
+// thread. This allows for different catch functions to have different type
+// hints, so each type of Throwable can be individually handled.
+				if(empty($this->chain)) {
+					throw $rejection;
+				}
+				else {
+					$this->reject($rejection);
+				}
 			}
 		}
 	}
 
 	public function getState():PromiseState {
+// TODO: In resolve() and reject() there probably shouldn't be an assignment
+// to $this->state. In fact it probably shouldn't be a property at all... it
+// can be inferred by whether there is a value set to resolvedValue
+// or rejectedReason... maybe - this needs checking.
 		return $this->state;
 	}
 
@@ -202,35 +207,5 @@ class Promise implements PromiseInterface {
 		}
 
 		return null;
-	}
-
-	private function call():void {
-		call_user_func(
-			$this->executor,
-			function(mixed $value = null) {
-				$this->resolve($value);
-			},
-			function(Throwable $reason) {
-				$this->reject($reason);
-			},
-			function() {
-				$this->complete();
-			}
-		);
-	}
-
-	private function resolve(mixed $value):void {
-		if($value instanceof PromiseInterface) {
-			$this->rejectedReason = new PromiseResolvedWithAnotherPromiseException();
-			return;
-		}
-
-		$this->state = PromiseState::RESOLVED;
-		$this->resolvedValue = $value;
-	}
-
-	private function reject(Throwable $reason):void {
-		$this->state = PromiseState::REJECTED;
-		$this->rejectedReason = $reason;
 	}
 }

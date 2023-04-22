@@ -70,7 +70,8 @@ class DeferredTest extends TestCase {
 		$promise = $sut->getPromise();
 		$promise->then(function() use (&$numResolvedCalls) {
 			$numResolvedCalls++;
-		}, function() use (&$numRejectedCalls) {
+		})
+		->catch(function() use (&$numRejectedCalls) {
 			$numRejectedCalls++;
 		});
 

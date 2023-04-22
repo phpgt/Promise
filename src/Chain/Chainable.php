@@ -36,21 +36,21 @@ abstract class Chainable {
 			return $reason;
 		}
 
-		try {
-			return call_user_func($this->onRejected, $reason);
-		}
-		catch(TypeError $error) {
-			$reflection = new ReflectionFunction($this->onRejected);
-			$param = $reflection->getParameters()[0] ?? null;
-			if($param) {
-				$paramType = (string)$param->getType();
-
-				if(!str_contains($error->getMessage(), "must be of type $paramType")) {
-					throw $error;
-				}
-			}
-
-			return $reason;
-		}
+		return call_user_func($this->onRejected, $reason);
+//		try {
+//		}
+//		catch(TypeError $error) {
+//			$reflection = new ReflectionFunction($this->onRejected);
+//			$param = $reflection->getParameters()[0] ?? null;
+//			if($param) {
+//				$paramType = (string)$param->getType();
+//
+//				if(!str_contains($error->getMessage(), "must be of type $paramType")) {
+//					throw $error;
+//				}
+//			}
+//
+//			return $reason;
+//		}
 	}
 }

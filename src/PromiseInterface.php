@@ -14,10 +14,7 @@ interface PromiseInterface {
 	 * rejected. The callback will be passed the Throwable reason as the
 	 * only argument.
 	 */
-	public function then(
-		callable $onResolved = null,
-		callable $onRejected = null
-	):PromiseInterface;
+	public function then(callable $onResolved):PromiseInterface;
 
 	/**
 	 * The catch() method returns a Promise and deals with rejected cases
@@ -28,9 +25,7 @@ interface PromiseInterface {
 	 * The only parameter of the $onRejected callback is a Throwable. A
 	 * specific type of Throwable can be used to catch only specific errors.
 	 */
-	public function catch(
-		callable $onRejected
-	):PromiseInterface;
+	public function catch(callable $onRejected):PromiseInterface;
 
 	/**
 	 * The finally() method returns a Promise. When the promise is settled,
@@ -45,9 +40,7 @@ interface PromiseInterface {
 	 * $onResolvedOrRejected will be called, with no arguments, when the
 	 * promise is either resolved or rejected.
 	 */
-	public function finally(
-		callable $onResolvedOrRejected
-	):PromiseInterface;
+	public function finally(callable $onResolvedOrRejected):PromiseInterface;
 
 	public function getState():PromiseState;
 
