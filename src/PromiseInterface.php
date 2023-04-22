@@ -49,8 +49,7 @@ interface PromiseInterface {
 		callable $onResolvedOrRejected
 	):PromiseInterface;
 
-	public function getState():string;
+	public function getState():PromiseState;
 
-	/** @return mixed */
-	public function wait(bool $unwrap = true);
+	public function wait(bool $unwrap = true):mixed;
 }

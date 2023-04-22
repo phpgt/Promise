@@ -6,10 +6,9 @@ use Gt\Promise\Chain\Chainable;
 use Gt\Promise\Chain\FinallyChain;
 use Gt\Promise\Chain\ThenChain;
 use Throwable;
-use Http\Promise\Promise as HttpPromiseInterface;
 
-class Promise implements PromiseInterface, HttpPromiseInterface {
-	private string $state;
+class Promise implements PromiseInterface {
+	private PromiseState $state;
 	private mixed $resolvedValue;
 	private ?Throwable $rejectedReason;
 
@@ -24,7 +23,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	private float $waitTaskDelay;
 
 	public function __construct(callable $executor) {
-		$this->state = HttpPromiseInterface::PENDING;
+		$this->state = PromiseState::PENDING;
 		$this->chain = [];
 		$this->pendingChain = [];
 		$this->rejectedReason = null;
@@ -138,7 +137,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 							break;
 						}
 
-						$this->state = HttpPromiseInterface::FULFILLED;
+						$this->state = PromiseState::RESOLVED;
 						if(!is_null($value)) {
 							$this->resolvedValue = $value;
 						}
@@ -161,15 +160,15 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 
 		if($emptyChain) {
 			if($reason) {
-				$this->state = HttpPromiseInterface::REJECTED;
+				$this->state = PromiseState::REJECTED;
 			}
 			else {
-				$this->state = HttpPromiseInterface::FULFILLED;
+				$this->state = PromiseState::RESOLVED;
 			}
 		}
 	}
 
-	public function getState():string {
+	public function getState():PromiseState {
 		return $this->state;
 	}
 
@@ -181,13 +180,12 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		$this->waitTaskDelay = $delaySeconds;
 	}
 
-	/** @param bool $unwrap */
-	public function wait($unwrap = true) {
+	public function wait(bool $unwrap = true):mixed {
 		if(!isset($this->waitTask)) {
 			throw new PromiseWaitTaskNotSetException();
 		}
 
-		while($this->getState() === HttpPromiseInterface::PENDING) {
+		while($this->getState() === PromiseState::PENDING) {
 			call_user_func($this->waitTask);
 			usleep((int)($this->waitTaskDelay * 1_000_000));
 		}
@@ -209,8 +207,7 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 	private function call():void {
 		call_user_func(
 			$this->executor,
-			/** @param mixed $value */
-			function($value = null) {
+			function(mixed $value = null) {
 				$this->resolve($value);
 			},
 			function(Throwable $reason) {
@@ -222,19 +219,18 @@ class Promise implements PromiseInterface, HttpPromiseInterface {
 		);
 	}
 
-	/** @param mixed $value */
-	private function resolve($value):void {
+	private function resolve(mixed $value):void {
 		if($value instanceof PromiseInterface) {
 			$this->rejectedReason = new PromiseResolvedWithAnotherPromiseException();
 			return;
 		}
 
-		$this->state = self::FULFILLED;
+		$this->state = PromiseState::RESOLVED;
 		$this->resolvedValue = $value;
 	}
 
 	private function reject(Throwable $reason):void {
-		$this->state = self::REJECTED;
+		$this->state = PromiseState::REJECTED;
 		$this->rejectedReason = $reason;
 	}
 }

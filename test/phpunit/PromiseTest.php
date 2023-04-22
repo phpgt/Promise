@@ -7,6 +7,7 @@ use Gt\Promise\Deferred;
 use Gt\Promise\Promise;
 use Gt\Promise\PromiseException;
 use Gt\Promise\PromiseResolvedWithAnotherPromiseException;
+use Gt\Promise\PromiseState;
 use Gt\Promise\PromiseWaitTaskNotSetException;
 use Gt\Promise\Test\Helper\CustomPromise;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -608,7 +609,7 @@ class PromiseTest extends TestCase {
 		$promiseContainer = $this->getTestPromiseContainer();
 		$sut = $promiseContainer->getPromise();
 		self::assertEquals(
-			HttpPromiseInterface::PENDING,
+			PromiseState::PENDING,
 			$sut->getState()
 		);
 	}
@@ -619,7 +620,7 @@ class PromiseTest extends TestCase {
 		$sut = $promiseContainer->getPromise();
 
 		self::assertEquals(
-			HttpPromiseInterface::FULFILLED,
+			PromiseState::RESOLVED,
 			$sut->getState()
 		);
 	}
@@ -630,7 +631,7 @@ class PromiseTest extends TestCase {
 		$sut = $promiseContainer->getPromise();
 
 		self::assertEquals(
-			HttpPromiseInterface::REJECTED,
+			PromiseState::REJECTED,
 			$sut->getState()
 		);
 	}
@@ -900,7 +901,7 @@ class PromiseTest extends TestCase {
 
 		self::assertSame("success", $resolution);
 		self::assertNull($rejection);
-		self::assertSame(Promise::FULFILLED, $newPromise->getState());
+		self::assertSame(PromiseState::RESOLVED, $newPromise->getState());
 	}
 
 	public function testCustomPromise_reject() {
@@ -929,7 +930,7 @@ class PromiseTest extends TestCase {
 
 		self::assertNull($resolution);
 		self::assertSame($exception, $rejection);
-		self::assertSame(Promise::REJECTED, $newPromise->getState());
+		self::assertSame(PromiseState::REJECTED, $newPromise->getState());
 	}
 
 	public function testPromise_rejectChain() {
