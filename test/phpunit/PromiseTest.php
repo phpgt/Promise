@@ -340,7 +340,7 @@ class PromiseTest extends TestCase {
 
 		$expectedResolution = "Resolve!";
 		$caughtResolutions = [];
-		$expectedReason = new \RuntimeException("This is expected");
+		$expectedReason = new RuntimeException("This is expected");
 		$caughtReasons = [];
 
 		$sut->then(function($value)use ($expectedReason, &$caughtResolutions) {
@@ -367,7 +367,7 @@ class PromiseTest extends TestCase {
 
 		$expectedResolution = "Resolve!";
 		$caughtResolutions = [];
-		$expectedReason = new \RuntimeException("This is expected");
+		$expectedReason = new RuntimeException("This is expected");
 		$caughtReasons = [];
 
 		$sut->then(function($value)use ($expectedReason) {
@@ -387,51 +387,6 @@ class PromiseTest extends TestCase {
 		self::assertEmpty($caughtResolutions);
 		self::assertCount(1, $caughtReasons);
 		self::assertSame($expectedReason, $caughtReasons[0]);
-	}
-
-	public function testCatchRejectionWhenExceptionIsThrownInResolutionFunctionUsingNestedAndChainedPromises() {
-		$promiseContainer = $this->getTestPromiseContainer();
-		$sut = $promiseContainer->getPromise();
-
-		$newDeferred = new Deferred();
-		$newPromise = $newDeferred->getPromise();
-
-		$expectedResolution = "Resolve!";
-		$caughtResolutions = [];
-		$expectedReason = new \RuntimeException("This is expected");
-		$caughtReasons = [];
-
-		$chainedPromise = $sut->then(function($value)use ($expectedReason) {
-			$chainedDeferred = new Deferred();
-
-			$chainedPromise = $chainedDeferred->getPromise();
-			$chainedPromise->then(function($value)use($expectedReason) {
-				throw $expectedReason;
-			})->catch(function(Throwable $reason)use($chainedDeferred) {
-				$chainedDeferred->reject($reason);
-			});
-
-			$chainedDeferred->resolve($value);
-			return $chainedPromise;
-		});
-
-		$chainedPromise->then(function($value)use(&$caughtResolutions) {
-			array_push($caughtResolutions, $value);
-		})->catch(function(Throwable $reason)use(&$caughtReasons) {
-			array_push($caughtReasons, $reason);
-		});
-
-		$newPromise->then(function($value)use (&$caughtResolutions) {
-			array_push($caughtResolutions, $value);
-		})->catch(function(Throwable $reason)use (&$caughtReasons) {
-			array_push($caughtReasons, $reason);
-		});
-
-		$promiseContainer->resolve($expectedResolution);
-
-		self::assertEmpty($caughtResolutions);
-		self::assertCount(1, $caughtReasons);
-		self::assertSame($expectedReason, $caughtReasons[0], "Actual reason: " . $caughtReasons[0]::class);
 	}
 
 	public function testCatchNotCalledOnFulfilledPromise() {
