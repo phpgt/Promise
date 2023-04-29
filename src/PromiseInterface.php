@@ -43,6 +43,4 @@ interface PromiseInterface {
 	public function finally(callable $onResolvedOrRejected):PromiseInterface;
 
 	public function getState():PromiseState;
-
-	public function wait(bool $unwrap = true):mixed;
 }

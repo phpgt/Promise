@@ -17,9 +17,6 @@ class Promise implements PromiseInterface {
 	private array $uncalledCatchChain;
 	/** @var callable */
 	private $executor;
-	/** @var ?callable */
-	private $waitTask;
-	private float $waitTaskDelay;
 
 	public function __construct(callable $executor) {
 		$this->chain = [];
@@ -129,15 +126,25 @@ class Promise implements PromiseInterface {
 		}
 	}
 
-	private function complete(
-	):void {
+	private function complete():void {
 		$this->sortChain();
 		$this->handleChain();
 	}
 
 	private function sortChain():void {
-		usort($this->chain, fn($a, $b)
-		=> $a instanceof FinallyChain ? 1 : 0);
+		usort(
+			$this->chain,
+			function(Chainable $a, Chainable $b) {
+				if($a instanceof FinallyChain) {
+					return 1;
+				}
+				elseif($b instanceof FinallyChain) {
+					return -1;
+				}
+
+				return 0;
+			}
+		);
 	}
 
 	private function handleChain():void {
@@ -149,7 +156,6 @@ class Promise implements PromiseInterface {
 			if(!$chainItem) {
 				break;
 			}
-			// TODO: Explore different syntax: $chainItem = $this->getNextChainItem() or break;
 
 			if($chainItem instanceof ThenChain) {
 				$this->handleThen($chainItem);
@@ -164,11 +170,7 @@ class Promise implements PromiseInterface {
 			}
 		}
 
-		if(isset($this->rejectedReason)) {
-			if(!$emptyChain && !in_array($this->rejectedReason, $handledRejections)) {
-				throw $this->rejectedReason;
-			}
-		}
+		$this->processHandledRejections($handledRejections, $emptyChain);
 	}
 
 	private function getNextChainItem():?Chainable {
@@ -181,7 +183,8 @@ class Promise implements PromiseInterface {
 		}
 
 		try {
-			$result = $then->callOnResolved($this->resolvedValue) ?? $this->resolvedValue;
+			$result = $then->callOnResolved($this->resolvedValue)
+				?? $this->resolvedValue;
 
 			if($result instanceof PromiseInterface) {
 				$this->chainPromise($result);
@@ -197,7 +200,7 @@ class Promise implements PromiseInterface {
 
 	private function handleCatch(CatchChain $catch):?Throwable {
 		if($this->getState() !== PromiseState::REJECTED) {
-// TODO: This list of uncalled catch chains can be processed later if there's an exception that matches.
+// TODO: This is where #52 can be implemented.
 			array_push($this->uncalledCatchChain, $catch);
 			return null;
 		}
@@ -241,35 +244,15 @@ class Promise implements PromiseInterface {
 		}
 	}
 
-	public function setWaitTask(
-		callable $task,
-		float $delaySeconds = 0.01
+	/** @param array<Throwable> $handledRejections */
+	private function processHandledRejections(
+		array $handledRejections,
+		bool $emptyChain
 	):void {
-		$this->waitTask = $task;
-		$this->waitTaskDelay = $delaySeconds;
-	}
-
-	public function wait(bool $unwrap = true):mixed {
-		if(!isset($this->waitTask)) {
-			throw new PromiseWaitTaskNotSetException();
+		if(isset($this->rejectedReason)) {
+			if(!$emptyChain && !in_array($this->rejectedReason, $handledRejections)) {
+				throw $this->rejectedReason;
+			}
 		}
-
-		while($this->getState() === PromiseState::PENDING) {
-			call_user_func($this->waitTask);
-			usleep((int)($this->waitTaskDelay * 1_000_000));
-		}
-
-		$this->complete();
-
-		if($unwrap) {
-			$resolvedValue = $this->resolvedValue;
-			$this->then(function($value) use(&$resolvedValue):void {
-				$resolvedValue = $value;
-			});
-
-			return $resolvedValue;
-		}
-
-		return null;
 	}
 }
