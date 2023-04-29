@@ -6,7 +6,6 @@ use Gt\Promise\Chain\Chainable;
 use Gt\Promise\Chain\FinallyChain;
 use Gt\Promise\Chain\ThenChain;
 use Throwable;
-use TypeError;
 
 class Promise implements PromiseInterface {
 	private mixed $resolvedValue;
@@ -14,8 +13,6 @@ class Promise implements PromiseInterface {
 
 	/** @var Chainable[] */
 	private array $chain;
-	/** @var Chainable[] */
-	private array $pendingChain;
 	/** @var CatchChain[] */
 	private array $uncalledCatchChain;
 	/** @var callable */
@@ -26,7 +23,6 @@ class Promise implements PromiseInterface {
 
 	public function __construct(callable $executor) {
 		$this->chain = [];
-		$this->pendingChain = [];
 		$this->uncalledCatchChain = [];
 
 		$this->executor = $executor;
@@ -55,14 +51,10 @@ class Promise implements PromiseInterface {
 
 	private function chainPromise(PromiseInterface $promise):void {
 		$this->reset();
-// TODO: Do we even need this pending chain, or can we just pass $nextThen directly into the $result->then using "use"?
-		$nextThen = $this->getNextChainItem();
-		array_push($this->pendingChain, $nextThen);
+		$futureThen = $this->getNextChainItem();
 
-		$promise->then(function(mixed $newResolvedValue) {
-			$then = $this->getNextChainItem(true);
-			$then->callOnResolved($newResolvedValue);
-
+		$promise->then(function(mixed $newResolvedValue)use($futureThen) {
+			$futureThen->callOnResolved($newResolvedValue);
 			$this->resolve($newResolvedValue);
 			$this->tryComplete();
 		})->catch(function(Throwable $rejection) {
@@ -179,11 +171,7 @@ class Promise implements PromiseInterface {
 		}
 	}
 
-	private function getNextChainItem(bool $pending = false):?Chainable {
-		if($pending) {
-			return array_shift($this->pendingChain);
-		}
-
+	private function getNextChainItem():?Chainable {
 		return array_shift($this->chain);
 	}
 
@@ -250,68 +238,6 @@ class Promise implements PromiseInterface {
 		}
 		else {
 			$this->resolve($result);
-		}
-	}
-
-	private function OLD_handleChain():void {
-		while($chainItem = array_shift($this->chain)) {
-			try {
-				if($chainItem instanceof ThenChain && $this->getState() === PromiseState::RESOLVED) {
-					if(isset($this->resolvedValue)) {
-						$newValue = $chainItem->callOnResolved($this->resolvedValue);
-						if($newValue instanceof PromiseInterface) {
-							unset($this->resolvedValue);
-							array_push($this->pendingChain, $this->chain[0] ?? null);
-							$newValue->then(function(mixed $resolvedValue) {
-								$this->resolvedValue = $resolvedValue;
-								if($chainItem = array_pop($this->pendingChain)) {
-									$chainItem->callOnResolved($this->resolvedValue);
-									unset($this->resolvedValue);
-								}
-								$this->complete();
-							})->catch(function(Throwable $reason) {
-								$this->reject($reason);
-							});
-						}
-						elseif(!is_null($newValue)) {
-							$this->resolve($newValue);
-						}
-					}
-				}
-				if($chainItem instanceof CatchChain && $this->getState() === PromiseState::REJECTED) {
-					$newValue = $chainItem->callOnRejected($this->rejectedReason);
-
-					if(!is_null($newValue)) {
-						if($newValue instanceof Throwable) {
-							$this->reject($newValue);
-						}
-						else {
-							$this->resolve($newValue);
-						}
-					}
-				}
-				if($chainItem instanceof FinallyChain) {
-					if($this->getState() === PromiseState::RESOLVED) {
-						$chainItem->callOnResolved($this->resolvedValue);
-					}
-					elseif($this->getState() === PromiseState::REJECTED) {
-						$chainItem->callOnRejected($this->rejectedReason);
-					}
-				}
-			}
-			catch(Throwable $rejection) {
-// When the chain is being handled, each item in the chain will be called.
-// If there's a rejection, we will pass it to the next item in the chain, unless
-// the chain is empty - at which point we must throw the rejection to the main
-// thread. This allows for different catch functions to have different type
-// hints, so each type of Throwable can be individually handled.
-				if(empty($this->chain)) {
-					throw $rejection;
-				}
-				else {
-					$this->reject($rejection);
-				}
-			}
 		}
 	}
 
