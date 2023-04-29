@@ -8,10 +8,10 @@ There are many implementations of the concept of a `Promise`. This library aims 
 <a href="https://github.com/PhpGt/Promise/actions" target="_blank">
 	<img src="https://badge.status.php.gt/promise-build.svg" alt="Build status" />
 </a>
-<a href="https://scrutinizer-ci.com/g/PhpGt/Promise" target="_blank">
+<a href="https://app.codacy.com/gh/PhpGt/Promise" target="_blank">
 	<img src="https://badge.status.php.gt/promise-quality.svg" alt="Code quality" />
 </a>
-<a href="https://scrutinizer-ci.com/g/PhpGt/Promise" target="_blank">
+<a href="https://app.codecov.io/gh/PhpGt/Promise" target="_blank">
 	<img src="https://badge.status.php.gt/promise-coverage.svg" alt="Code coverage" />
 </a>
 <a href="https://packagist.org/packages/PhpGt/Promise" target="_blank">
