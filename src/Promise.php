@@ -9,7 +9,6 @@ use Throwable;
 use TypeError;
 
 class Promise implements PromiseInterface {
-	private PromiseState $state;
 	private mixed $resolvedValue;
 	private ?Throwable $rejectedReason;
 
@@ -17,6 +16,8 @@ class Promise implements PromiseInterface {
 	private array $chain;
 	/** @var Chainable[] */
 	private array $pendingChain;
+	/** @var CatchChain[] */
+	private array $uncalledCatchChain;
 	/** @var callable */
 	private $executor;
 	/** @var ?callable */
@@ -24,13 +25,23 @@ class Promise implements PromiseInterface {
 	private float $waitTaskDelay;
 
 	public function __construct(callable $executor) {
-		$this->state = PromiseState::PENDING;
 		$this->chain = [];
 		$this->pendingChain = [];
-		$this->rejectedReason = null;
+		$this->uncalledCatchChain = [];
 
 		$this->executor = $executor;
 		$this->callExecutor();
+	}
+
+	public function getState():PromiseState {
+		if(isset($this->rejectedReason)) {
+			return PromiseState::REJECTED;
+		}
+		elseif(isset($this->resolvedValue)) {
+			return PromiseState::RESOLVED;
+		}
+
+		return PromiseState::PENDING;
 	}
 
 	public function then(callable $onResolved):PromiseInterface {
@@ -40,6 +51,24 @@ class Promise implements PromiseInterface {
 		));
 		$this->tryComplete();
 		return $this;
+	}
+
+	private function chainPromise(PromiseInterface $promise):void {
+		$this->reset();
+// TODO: Do we even need this pending chain, or can we just pass $nextThen directly into the $result->then using "use"?
+		$nextThen = $this->getNextChainItem();
+		array_push($this->pendingChain, $nextThen);
+
+		$promise->then(function(mixed $newResolvedValue) {
+			$then = $this->getNextChainItem(true);
+			$then->callOnResolved($newResolvedValue);
+
+			$this->resolve($newResolvedValue);
+			$this->tryComplete();
+		})->catch(function(Throwable $rejection) {
+			$this->reject($rejection);
+			$this->tryComplete();
+		});
 	}
 
 	public function catch(callable $onRejected):PromiseInterface {
@@ -78,22 +107,32 @@ class Promise implements PromiseInterface {
 	}
 
 	private function resolve(mixed $value):void {
+		$this->reset();
 		if($value instanceof PromiseInterface) {
 			$this->reject(new PromiseResolvedWithAnotherPromiseException());
+			$this->tryComplete();
 			return;
 		}
 
-		$this->state = PromiseState::RESOLVED;
 		$this->resolvedValue = $value;
 	}
 
 	private function reject(Throwable $reason):void {
-		$this->state = PromiseState::REJECTED;
+		$this->reset();
 		$this->rejectedReason = $reason;
 	}
 
+	private function reset():void {
+		if(isset($this->resolvedValue)) {
+			unset($this->resolvedValue);
+		}
+		if(isset($this->rejectedReason)) {
+			unset($this->rejectedReason);
+		}
+	}
+
 	private function tryComplete():void {
-		if(isset($this->resolvedValue) || isset($this->rejectedReason)) {
+		if($this->getState() !== PromiseState::PENDING) {
 			$this->complete();
 		}
 	}
@@ -106,10 +145,115 @@ class Promise implements PromiseInterface {
 
 	private function sortChain():void {
 		usort($this->chain, fn($a, $b)
-			=> $a instanceof FinallyChain ? 1 : 0);
+		=> $a instanceof FinallyChain ? 1 : 0);
 	}
 
 	private function handleChain():void {
+		$handledRejections = [];
+
+		$emptyChain = empty($this->chain);
+		while($this->getState() !== PromiseState::PENDING) {
+			$chainItem = $this->getNextChainItem();
+			if(!$chainItem) {
+				break;
+			}
+			// TODO: Explore different syntax: $chainItem = $this->getNextChainItem() or break;
+
+			if($chainItem instanceof ThenChain) {
+				$this->handleThen($chainItem);
+			}
+			elseif($chainItem instanceof CatchChain) {
+				if($handled = $this->handleCatch($chainItem)) {
+					array_push($handledRejections, $handled);
+				}
+			}
+			elseif($chainItem instanceof FinallyChain) {
+				$this->handleFinally($chainItem);
+			}
+		}
+
+		if(isset($this->rejectedReason)) {
+			if(!$emptyChain && !in_array($this->rejectedReason, $handledRejections)) {
+				throw $this->rejectedReason;
+			}
+		}
+	}
+
+	private function getNextChainItem(bool $pending = false):?Chainable {
+		if($pending) {
+			return array_shift($this->pendingChain);
+		}
+
+		return array_shift($this->chain);
+	}
+
+	private function handleThen(ThenChain $then):void {
+		if($this->getState() !== PromiseState::RESOLVED) {
+			return;
+		}
+
+		try {
+			$result = $then->callOnResolved($this->resolvedValue) ?? $this->resolvedValue;
+
+			if($result instanceof PromiseInterface) {
+				$this->chainPromise($result);
+			}
+			else {
+				$this->resolve($result);
+			}
+		}
+		catch(Throwable $rejection) {
+			$this->reject($rejection);
+		}
+	}
+
+	private function handleCatch(CatchChain $catch):?Throwable {
+		if($this->getState() !== PromiseState::REJECTED) {
+// TODO: This list of uncalled catch chains can be processed later if there's an exception that matches.
+			array_push($this->uncalledCatchChain, $catch);
+			return null;
+		}
+
+		try {
+			$result = $catch->callOnRejected($this->rejectedReason);
+
+			if($result instanceof PromiseInterface) {
+				$this->chainPromise($result);
+			}
+			elseif(!is_null($result)) {
+				$this->resolve($result);
+			}
+			else {
+				return $this->rejectedReason;
+			}
+
+		}
+		catch(Throwable $rejection) {
+			$this->reject($rejection);
+		}
+
+		return null;
+	}
+
+	private function handleFinally(FinallyChain $finally):void {
+		$result = null;
+
+		if($this->getState() === PromiseState::RESOLVED) {
+			$result = $finally->callOnResolved($this->resolvedValue);
+		}
+		elseif($this->getState() === PromiseState::REJECTED) {
+			$result = $finally->callOnRejected($this->rejectedReason);
+		}
+
+		if($result instanceof PromiseInterface) {
+			$this->chainPromise($result);
+		}
+		else {
+			$this->resolve($result);
+		}
+	}
+
+	private function OLD_handleChain():void {
 		while($chainItem = array_shift($this->chain)) {
 			try {
 				if($chainItem instanceof ThenChain && $this->getState() === PromiseState::RESOLVED) {
@@ -125,6 +269,8 @@ class Promise implements PromiseInterface {
 									unset($this->resolvedValue);
 								}
 								$this->complete();
+							})->catch(function(Throwable $reason) {
+								$this->reject($reason);
 							});
 						}
 						elseif(!is_null($newValue)) {
@@ -148,7 +294,7 @@ class Promise implements PromiseInterface {
 					if($this->getState() === PromiseState::RESOLVED) {
 						$chainItem->callOnResolved($this->resolvedValue);
 					}
-					else {
+					elseif($this->getState() === PromiseState::REJECTED) {
 						$chainItem->callOnRejected($this->rejectedReason);
 					}
 				}
@@ -167,14 +313,6 @@ class Promise implements PromiseInterface {
 				}
 			}
 		}
-	}
-
-	public function getState():PromiseState {
-// TODO: In resolve() and reject() there probably shouldn't be an assignment
-// to $this->state. In fact it probably shouldn't be a property at all... it
-// can be inferred by whether there is a value set to resolvedValue
-// or rejectedReason... maybe - this needs checking.
-		return $this->state;
 	}
 
 	public function setWaitTask(
