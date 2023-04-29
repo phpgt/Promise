@@ -2,6 +2,7 @@
 namespace Gt\Promise\Test;
 
 use Gt\Promise\PromiseInterface;
+use Gt\Promise\PromiseState;
 use Http\Promise\Promise as HttpPromiseInterface;
 
 class TestPromiseContainer {
@@ -30,7 +31,7 @@ class TestPromiseContainer {
 	}
 
 	public function resolve(...$args):?PromiseInterface {
-		if($this->promise->getState() !== HttpPromiseInterface::FULFILLED) {
+		if($this->promise->getState() !== PromiseState::RESOLVED) {
 			$promise = call_user_func($this->resolve, ...$args);
 			call_user_func($this->complete);
 			return $promise;

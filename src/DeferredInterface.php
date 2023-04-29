@@ -15,7 +15,7 @@ interface DeferredInterface {
 	/**
 	 * Resolve the Promise returned by getPromise() with its final value.
 	 * All consuming callbacks registered with the Promise's then()
-	 * function will be fulfilled with this value.
+	 * function will be resolved with this value.
 	 *
 	 * @param ?mixed $value
 	 */

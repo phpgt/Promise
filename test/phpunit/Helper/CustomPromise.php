@@ -4,12 +4,12 @@ namespace Gt\Promise\Test\Helper;
 use Exception;
 use Gt\Promise\Deferred;
 use Gt\Promise\PromiseInterface;
-use Http\Promise\Promise as HttpPromiseInterface;
+use Gt\Promise\PromiseState;
 use RuntimeException;
 use Throwable;
 
-class CustomPromise implements HttpPromiseInterface {
-	private string $state = self::PENDING;
+class CustomPromise {
+	private PromiseState $state = PromiseState::PENDING;
 	private mixed $resolvedValue;
 	private \Throwable $rejectedReason;
 	/** @var callable */
@@ -18,23 +18,23 @@ class CustomPromise implements HttpPromiseInterface {
 	private $onRejected;
 
 	public function then(
-		callable $onFulfilled = null,
+		callable $onResolved = null,
 		callable $onRejected = null,
 	):?PromiseInterface {
 		$newDeferred = new Deferred();
 		$newPromise = $newDeferred->getPromise();
 
-		$onFulfilled = $onFulfilled
+		$onResolved = $onResolved
 			?? fn($resolvedValue) => $resolvedValue;
 		$onRejected = $onRejected
 			?? fn(Throwable $exception) => $exception;
 
 		$this->onFulfilled = function(mixed $resolvedValue)
-		use($onFulfilled, $newDeferred) {
+		use($onResolved, $newDeferred) {
 			try {
-				$return = $onFulfilled($resolvedValue);
+				$return = $onResolved($resolvedValue);
 
-				if($return instanceof HttpPromiseInterface) {
+				if($return instanceof PromiseInterface) {
 					$return->then(function($innerResolvedValue) use($newDeferred) {
 						$newDeferred->resolve($innerResolvedValue);
 					});
@@ -53,10 +53,10 @@ class CustomPromise implements HttpPromiseInterface {
 			$newDeferred->reject($return ?? $rejectedReason);
 		};
 
-		if($this->state === self::FULFILLED) {
+		if($this->state === PromiseState::RESOLVED) {
 			$this->doResolve($this->resolvedValue);
 		}
-		elseif($this->state === self::REJECTED) {
+		elseif($this->state === PromiseState::REJECTED) {
 			$this->doReject($this->rejectedReason);
 			call_user_func($this->onRejected, $this->rejectedReason);
 		}
@@ -64,7 +64,7 @@ class CustomPromise implements HttpPromiseInterface {
 		return $newPromise;
 	}
 
-	public function getState():string {
+	public function getState():PromiseState {
 		return $this->state;
 	}
 
@@ -73,30 +73,30 @@ class CustomPromise implements HttpPromiseInterface {
 	}
 
 	public function resolve(mixed $value):void {
-		if($this->state !== self::PENDING) {
+		if($this->state !== PromiseState::PENDING) {
 			throw new RuntimeException("Promise is already resolved");
 		}
-		$this->state = self::FULFILLED;
+		$this->state = PromiseState::RESOLVED;
 		$this->resolvedValue = $value;
 		$this->doResolve($value);
 	}
 
 	public function reject(Throwable $reason):void {
-		if($this->state !== self::PENDING) {
+		if($this->state !== PromiseState::PENDING) {
 			throw new RuntimeException("Promise is already resolved");
 		}
-		$this->state = self::REJECTED;
+		$this->state = PromiseState::REJECTED;
 		$this->rejectedReason = $reason;
 		$this->doReject($reason);
 	}
 
-	private function doResolve(mixed $value) {
+	private function doResolve(mixed $value):void {
 		if(isset($this->onFulfilled)) {
 			call_user_func($this->onFulfilled, $value);
 		}
 	}
 
-	private function doReject(Throwable $reason) {
+	private function doReject(Throwable $reason):void {
 		if(isset($this->onRejected)) {
 			call_user_func($this->onRejected, $reason);
 		}
