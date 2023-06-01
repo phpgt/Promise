@@ -184,7 +184,7 @@ class Promise implements PromiseInterface {
 
 		try {
 			$result = $then->callOnResolved($this->resolvedValue)
-				?? $this->resolvedValue;
+				?? $this->resolvedValue ?? null;
 
 			if($result instanceof PromiseInterface) {
 				$this->chainPromise($result);
