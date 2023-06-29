@@ -9,7 +9,7 @@ use Throwable;
 
 class Promise implements PromiseInterface {
 	private mixed $resolvedValue;
-	private ?Throwable $rejectedReason;
+	private Throwable $rejectedReason;
 
 	/** @var Chainable[] */
 	private array $chain;
@@ -17,8 +17,10 @@ class Promise implements PromiseInterface {
 	private array $uncalledCatchChain;
 	/** @var callable */
 	private $executor;
+	private bool $completed;
 
 	public function __construct(callable $executor) {
+		$this->completed = false;
 		$this->chain = [];
 		$this->uncalledCatchChain = [];
 
@@ -90,7 +92,7 @@ class Promise implements PromiseInterface {
 				$this->reject($reason);
 			},
 			function() {
-				$this->complete();
+				$this->tryComplete();
 			}
 		);
 	}
@@ -121,6 +123,9 @@ class Promise implements PromiseInterface {
 	}
 
 	private function tryComplete():void {
+		if($this->completed) {
+			return;
+		}
 		if($this->getState() !== PromiseState::PENDING) {
 			$this->complete();
 		}
@@ -129,6 +134,7 @@ class Promise implements PromiseInterface {
 	private function complete():void {
 		$this->sortChain();
 		$this->handleChain();
+		$this->completed = true;
 	}
 
 	private function sortChain():void {
@@ -151,6 +157,7 @@ class Promise implements PromiseInterface {
 		$handledRejections = [];
 
 		$emptyChain = empty($this->chain);
+		$originalChain = $this->chain;
 		while($this->getState() !== PromiseState::PENDING) {
 			$chainItem = $this->getNextChainItem();
 			if(!$chainItem) {
@@ -170,7 +177,7 @@ class Promise implements PromiseInterface {
 			}
 		}
 
-		$this->processHandledRejections($handledRejections, $emptyChain);
+		$this->handleCatches($originalChain, $emptyChain, $handledRejections);
 	}
 
 	private function getNextChainItem():?Chainable {
@@ -244,13 +251,29 @@ class Promise implements PromiseInterface {
 		}
 	}
 
-	/** @param array<Throwable> $handledRejections */
-	private function processHandledRejections(
+	/**
+	 * @param array<Chainable> $chain
+	 * @param bool $emptyChain
+	 * @param array<Throwable> $handledRejections
+	 */
+	protected function handleCatches(
+		array $chain,
+		bool $emptyChain,
 		array $handledRejections,
-		bool $emptyChain
 	):void {
-		if(isset($this->rejectedReason)) {
-			if(!$emptyChain && !in_array($this->rejectedReason, $handledRejections)) {
+		if ($this->getState() === PromiseState::REJECTED) {
+			$hasCatch = false;
+			foreach ($chain as $chainItem) {
+				if ($chainItem instanceof CatchChain) {
+					$hasCatch = true;
+				}
+			}
+
+			if (!$hasCatch) {
+				throw $this->rejectedReason;
+			}
+
+			if (!$emptyChain && !in_array($this->rejectedReason, $handledRejections)) {
 				throw $this->rejectedReason;
 			}
 		}
