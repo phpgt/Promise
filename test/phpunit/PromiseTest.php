@@ -445,8 +445,10 @@ class PromiseTest extends TestCase {
 
 	public function testGetStateRejected() {
 		$promiseContainer = $this->getTestPromiseContainer();
-		$promiseContainer->reject(new Exception("Example rejection"));
 		$sut = $promiseContainer->getPromise();
+		$sut->catch(function(Throwable $throwable){});
+
+		$promiseContainer->reject(new Exception("Example rejection"));
 
 		self::assertEquals(
 			PromiseState::REJECTED,
@@ -488,12 +490,35 @@ class PromiseTest extends TestCase {
 		$expectedException = new Exception("Test exception");
 		$promiseContainer = $this->getTestPromiseContainer();
 		$sut = $promiseContainer->getPromise();
+		$sut->then(function() use($expectedException) {
+			throw $expectedException;
+		});
 
 		$exception = null;
 		try {
-			$sut->then(function() use($expectedException) {
-				throw $expectedException;
+			$promiseContainer->resolve("test");
+		}
+		catch(Throwable $exception) {}
+
+		self::assertSame($expectedException, $exception);
+	}
+
+	public function testNoCatchMethodBubblesThrowables_internalRejection() {
+		$expectedException = new Exception("Test exception");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$exception = null;
+		try {
+			$sut->then(function(string $message) use($sut, $promiseContainer, $expectedException) {
+				$sut->then(function($resolvedValue) use($promiseContainer, $expectedException) {
+					$promiseContainer->reject($expectedException);
+				});
+				return $sut;
+			})->catch(function(Throwable $reason) {
+				var_dump($reason);die("THIS IS THE REASON");
 			});
+
 			$promiseContainer->resolve("test");
 		}
 		catch(Throwable $exception) {}
@@ -641,7 +666,7 @@ class PromiseTest extends TestCase {
 
 		$customPromise->then(function($resolvedValue)use(&$resolution) {
 			$resolution = $resolvedValue;
-		}, function($rejectedValue)use(&$rejection) {
+		})->catch(function($rejectedValue)use(&$rejection) {
 			$rejection = $rejectedValue;
 		});
 
@@ -682,6 +707,41 @@ class PromiseTest extends TestCase {
 
 		self::assertCount(0, $thenCalls);
 		self::assertCount(1, $catchCalls);
+	}
+
+	public function testPromise_notThrowWhenNoCatch():void {
+		$expectedException = new RuntimeException("This should be passed to the catch function");
+		$caughtReasons = [];
+
+		$deferred = new Deferred();
+		$deferredPromise = $deferred->getPromise();
+		$deferredPromise->then(function(string $message) use ($expectedException) {
+			if($message === "error") {
+				throw $expectedException;
+			}
+		})->catch(function(Throwable $reason) use(&$caughtReasons) {
+			array_push($caughtReasons, $reason);
+		});
+
+		$deferred->resolve("error");
+		self::assertCount(1, $caughtReasons);
+		self::assertSame($expectedException, $caughtReasons[0]);
+	}
+
+	public function testPromise_throwWhenNoCatch():void {
+		$expectedException = new RuntimeException("There was an error!");
+
+		$deferred = new Deferred();
+		$deferredPromise = $deferred->getPromise();
+		$deferredPromise->then(function(string $message) use($expectedException) {
+			if($message === "error") {
+				throw $expectedException;
+			}
+		});
+
+		self::expectException(RuntimeException::class);
+		self::expectExceptionMessage("There was an error!");
+		$deferred->resolve("error");
 	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {
