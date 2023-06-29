@@ -132,12 +132,6 @@ class Promise implements PromiseInterface {
 	}
 
 	private function complete():void {
-		$this->sortChain();
-		$this->handleChain();
-		$this->completed = true;
-	}
-
-	private function sortChain():void {
 		usort(
 			$this->chain,
 			function(Chainable $a, Chainable $b) {
@@ -151,9 +145,6 @@ class Promise implements PromiseInterface {
 				return 0;
 			}
 		);
-	}
-
-	private function handleChain():void {
 		$handledRejections = [];
 
 		$emptyChain = empty($this->chain);
@@ -178,6 +169,8 @@ class Promise implements PromiseInterface {
 		}
 
 		$this->handleCatches($originalChain, $emptyChain, $handledRejections);
+
+		$this->completed = true;
 	}
 
 	private function getNextChainItem():?Chainable {
