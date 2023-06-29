@@ -739,8 +739,9 @@ class PromiseTest extends TestCase {
 			}
 		});
 
-		self::expectException($expectedException);
-		$deferred->resolve($expectedException);
+		self::expectException(RuntimeException::class);
+		self::expectExceptionMessage("There was an error!");
+		$deferred->resolve("error");
 	}
 
 	protected function getTestPromiseContainer():TestPromiseContainer {
