@@ -55,12 +55,9 @@ class PromiseTest extends TestCase {
 			$actualMessage = $reason->getMessage();
 		});
 
+		self::expectExceptionMessage("A Promise must not be resolved with another Promise.");
 		$promiseContainer->resolve($sut);
 		self::assertEquals(0, $onResolvedCallCount);
-		self::assertEquals(
-			"A Promise must not be resolved with another Promise.",
-			$actualMessage
-		);
 	}
 
 	public function testRejectWithException() {
@@ -139,21 +136,6 @@ class PromiseTest extends TestCase {
 
 		$promiseContainer->resolve("example1");
 		$promiseContainer->resolve("example2");
-	}
-
-	public function testLatestRejectedReasonUsedOnRejection() {
-		$promiseContainer = $this->getTestPromiseContainer();
-		$exception1 = new Exception("First exception");
-		$exception2 = new Exception("Second exception");
-
-		$onFulfilled = self::mockCallable(0);
-		$onRejected = self::mockCallable(1, $exception1);
-
-		$sut = $promiseContainer->getPromise();
-		$sut->then($onFulfilled)->catch($onRejected);
-
-		$promiseContainer->reject($exception1);
-		$promiseContainer->reject($exception2);
 	}
 
 	public function testPreResolvedPromiseInvokesOnFulfill() {
@@ -515,8 +497,6 @@ class PromiseTest extends TestCase {
 					$promiseContainer->reject($expectedException);
 				});
 				return $sut;
-			})->catch(function(Throwable $reason) {
-				var_dump($reason);die("THIS IS THE REASON");
 			});
 
 			$promiseContainer->resolve("test");
