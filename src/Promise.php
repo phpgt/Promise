@@ -123,7 +123,7 @@ class Promise implements PromiseInterface {
 	}
 
 	private function tryComplete():void {
-		if($this->completed) {
+		if(empty($this->chain)) {
 			return;
 		}
 		if($this->getState() !== PromiseState::PENDING) {
