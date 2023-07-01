@@ -55,9 +55,9 @@ class PromiseTest extends TestCase {
 			$actualMessage = $reason->getMessage();
 		});
 
-		self::expectExceptionMessage("A Promise must not be resolved with another Promise.");
 		$promiseContainer->resolve($sut);
 		self::assertEquals(0, $onResolvedCallCount);
+		self::assertSame("A Promise must not be resolved with another Promise.", $actualMessage);
 	}
 
 	public function testRejectWithException() {

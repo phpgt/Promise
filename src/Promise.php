@@ -15,14 +15,15 @@ class Promise implements PromiseInterface {
 	private array $chain;
 	/** @var CatchChain[] */
 	private array $uncalledCatchChain;
+	/** @var Throwable[] */
+	private array $handledRejections;
 	/** @var callable */
 	private $executor;
-	private bool $completed;
 
 	public function __construct(callable $executor) {
-		$this->completed = false;
 		$this->chain = [];
 		$this->uncalledCatchChain = [];
+		$this->handledRejections = [];
 
 		$this->executor = $executor;
 		$this->callExecutor();
@@ -123,7 +124,8 @@ class Promise implements PromiseInterface {
 	}
 
 	private function tryComplete():void {
-		if(empty($this->chain) && $this->getState() === PromiseState::PENDING) {
+		if(empty($this->chain)) {
+			$this->throwUnhandledRejection();
 			return;
 		}
 		if($this->getState() !== PromiseState::PENDING) {
@@ -145,10 +147,7 @@ class Promise implements PromiseInterface {
 				return 0;
 			}
 		);
-		$handledRejections = [];
 
-		$emptyChain = empty($this->chain);
-		$originalChain = $this->chain;
 		while($this->getState() !== PromiseState::PENDING) {
 			$chainItem = $this->getNextChainItem();
 			if(!$chainItem) {
@@ -160,7 +159,7 @@ class Promise implements PromiseInterface {
 			}
 			elseif($chainItem instanceof CatchChain) {
 				if($handled = $this->handleCatch($chainItem)) {
-					array_push($handledRejections, $handled);
+					array_push($this->handledRejections, $handled);
 				}
 			}
 			elseif($chainItem instanceof FinallyChain) {
@@ -168,9 +167,7 @@ class Promise implements PromiseInterface {
 			}
 		}
 
-		$this->handleCatches($originalChain, $emptyChain, $handledRejections);
-
-		$this->completed = true;
+		$this->throwUnhandledRejection();
 	}
 
 	private function getNextChainItem():?Chainable {
@@ -200,7 +197,8 @@ class Promise implements PromiseInterface {
 
 	private function handleCatch(CatchChain $catch):?Throwable {
 		if($this->getState() !== PromiseState::REJECTED) {
-// TODO: This is where #52 can be implemented.
+// TODO: This is where #52 can be implemented
+// see: (https://github.com/PhpGt/Promise/issues/52)
 			array_push($this->uncalledCatchChain, $catch);
 			return null;
 		}
@@ -244,29 +242,9 @@ class Promise implements PromiseInterface {
 		}
 	}
 
-	/**
-	 * @param array<Chainable> $chain
-	 * @param bool $emptyChain
-	 * @param array<Throwable> $handledRejections
-	 */
-	protected function handleCatches(
-		array $chain,
-		bool $emptyChain,
-		array $handledRejections,
-	):void {
-		if ($this->getState() === PromiseState::REJECTED) {
-			$hasCatch = false;
-			foreach ($chain as $chainItem) {
-				if ($chainItem instanceof CatchChain) {
-					$hasCatch = true;
-				}
-			}
-
-			if (!$hasCatch) {
-				throw $this->rejectedReason;
-			}
-
-			if (!$emptyChain && !in_array($this->rejectedReason, $handledRejections)) {
+	protected function throwUnhandledRejection():void {
+		if($this->getState() === PromiseState::REJECTED) {
+			if(!in_array($this->rejectedReason, $this->handledRejections)) {
 				throw $this->rejectedReason;
 			}
 		}
