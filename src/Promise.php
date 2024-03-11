@@ -167,7 +167,7 @@ class Promise implements PromiseInterface {
 
 			if($chainItem instanceof ThenChain) {
 				try {
-					if($this->resolvedValueSet) {
+					if($this->resolvedValueSet && isset($this->resolvedValue)) {
 						$chainItem->checkResolutionCallbackType($this->resolvedValue);
 					}
 				}
@@ -208,7 +208,9 @@ class Promise implements PromiseInterface {
 		}
 
 		try {
-			$result = $then->callOnResolved($this->resolvedValue);
+			if(isset($this->resolvedValue)) {
+				$result = $then->callOnResolved($this->resolvedValue);
+			}
 
 			if($result instanceof PromiseInterface) {
 				$this->chainPromise($result);
