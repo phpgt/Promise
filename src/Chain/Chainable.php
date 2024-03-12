@@ -83,6 +83,7 @@ abstract class Chainable {
 		$refType = $refParameter->getType();
 
 		if($refType instanceof ReflectionUnionType || $refType instanceof ReflectionIntersectionType) {
+			/** @var ReflectionNamedType $refSubType */
 			foreach($refType->getTypes() as $refSubType) {
 				array_push($allowedTypes, $refSubType->getName());
 			}

@@ -8,6 +8,7 @@ use Gt\Promise\Chain\FinallyChain;
 use Gt\Promise\Chain\ThenChain;
 use Throwable;
 
+/** @SuppressWarnings(PHPMD.ExcessiveClassComplexity) */
 class Promise implements PromiseInterface {
 	private mixed $resolvedValue;
 	/** @var bool This is required due to the ability to set `null` as a resolved value. */
@@ -142,8 +143,6 @@ class Promise implements PromiseInterface {
 		}
 	}
 
-	/** @SuppressWarnings(PHPMD.CyclomaticComplexity) */
-	// phpcs:ignore
 	private function complete():void {
 		usort(
 			$this->chain,
@@ -208,6 +207,7 @@ class Promise implements PromiseInterface {
 		}
 
 		try {
+			$result = null;
 			if(isset($this->resolvedValue)) {
 				$result = $then->callOnResolved($this->resolvedValue);
 			}
@@ -226,8 +226,6 @@ class Promise implements PromiseInterface {
 
 	private function handleCatch(CatchChain $catch):?Throwable {
 		if($this->getState() !== PromiseState::REJECTED) {
-// TODO: This is where #52 can be implemented
-// see: (https://github.com/PhpGt/Promise/issues/52)
 			array_push($this->uncalledCatchChain, $catch);
 			return null;
 		}
