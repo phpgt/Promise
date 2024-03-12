@@ -442,7 +442,7 @@ class PromiseTest extends TestCase {
 		$promiseContainer->reject($exception1);
 	}
 
-	public function testFinallyRejectsWhenResolvedWithItself() {
+	public function testFinallyCanReturnPromise() {
 		$finallyLog = [];
 
 		$otherPromiseContainer = $this->getTestPromiseContainer();
@@ -577,6 +577,29 @@ class PromiseTest extends TestCase {
 		}
 
 		self::assertSame($expectedException, $exception);
+	}
+
+	public function testCatchCanReturnPromise() {
+		$catchLog = [];
+		$finallyLog = [];
+
+		$otherPromiseContainer = $this->getTestPromiseContainer();
+		$otherPromise = $otherPromiseContainer->getPromise();
+		$otherPromiseContainer->resolve("test");
+
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+		$sut->catch(function(Throwable $rejectedReason) use($otherPromise, &$catchLog) {
+			array_push($catchLog, $rejectedReason);
+			return $otherPromise;
+		})->finally(function(mixed $received) use(&$finallyLog) {
+			array_push($finallyLog, $received);
+		});
+		$promiseContainer->resolve($sut);
+		self::assertCount(1, $catchLog);
+		self::assertCount(1, $finallyLog);
+		self::assertInstanceOf(PromiseResolvedWithAnotherPromiseException::class, $catchLog[0]);
+		self::assertSame("test", $finallyLog[0]);
 	}
 
 	public function testFulfilledReturnsNewPromiseThatIsResolved() {
