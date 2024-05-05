@@ -8,7 +8,10 @@ use Gt\Promise\Chain\FinallyChain;
 use Gt\Promise\Chain\ThenChain;
 use Throwable;
 
-/** @SuppressWarnings(PHPMD.ExcessiveClassComplexity) */
+/**
+ * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
+ * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+ */
 class Promise implements PromiseInterface {
 	private mixed $resolvedValue;
 	/** @var bool This is required due to the ability to set `null` as a resolved value. */
@@ -143,6 +146,7 @@ class Promise implements PromiseInterface {
 		}
 	}
 
+	// phpcs:ignore
 	private function complete():void {
 		usort(
 			$this->chain,
