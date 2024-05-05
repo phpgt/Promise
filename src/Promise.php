@@ -3,12 +3,19 @@ namespace Gt\Promise;
 
 use Gt\Promise\Chain\CatchChain;
 use Gt\Promise\Chain\Chainable;
+use Gt\Promise\Chain\ChainFunctionTypeError;
 use Gt\Promise\Chain\FinallyChain;
 use Gt\Promise\Chain\ThenChain;
 use Throwable;
 
+/**
+ * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
+ * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+ */
 class Promise implements PromiseInterface {
 	private mixed $resolvedValue;
+	/** @var bool This is required due to the ability to set `null` as a resolved value. */
+	private bool $resolvedValueSet = false;
 	private Throwable $rejectedReason;
 
 	/** @var Chainable[] */
@@ -33,7 +40,7 @@ class Promise implements PromiseInterface {
 		if(isset($this->rejectedReason)) {
 			return PromiseState::REJECTED;
 		}
-		elseif(isset($this->resolvedValue)) {
+		elseif($this->resolvedValueSet) {
 			return PromiseState::RESOLVED;
 		}
 
@@ -87,7 +94,12 @@ class Promise implements PromiseInterface {
 		call_user_func(
 			$this->executor,
 			function(mixed $value = null) {
-				$this->resolve($value);
+				try {
+					$this->resolve($value);
+				}
+				catch(PromiseException $exception) {
+					$this->reject($exception);
+				}
 			},
 			function(Throwable $reason) {
 				$this->reject($reason);
@@ -107,6 +119,7 @@ class Promise implements PromiseInterface {
 		}
 
 		$this->resolvedValue = $value;
+		$this->resolvedValueSet = true;
 	}
 
 	private function reject(Throwable $reason):void {
@@ -133,6 +146,7 @@ class Promise implements PromiseInterface {
 		}
 	}
 
+	// phpcs:ignore
 	private function complete():void {
 		usort(
 			$this->chain,
@@ -155,11 +169,28 @@ class Promise implements PromiseInterface {
 			}
 
 			if($chainItem instanceof ThenChain) {
+				try {
+					if($this->resolvedValueSet && isset($this->resolvedValue)) {
+						$chainItem->checkResolutionCallbackType($this->resolvedValue);
+					}
+				}
+				catch(ChainFunctionTypeError) {
+					continue;
+				}
+
 				$this->handleThen($chainItem);
 			}
 			elseif($chainItem instanceof CatchChain) {
-				if($handled = $this->handleCatch($chainItem)) {
-					array_push($this->handledRejections, $handled);
+				try {
+					if(isset($this->rejectedReason)) {
+						$chainItem->checkRejectionCallbackType($this->rejectedReason);
+					}
+					if($handled = $this->handleCatch($chainItem)) {
+						array_push($this->handledRejections, $handled);
+					}
+				}
+				catch(ChainFunctionTypeError) {
+					continue;
 				}
 			}
 			elseif($chainItem instanceof FinallyChain) {
@@ -180,8 +211,10 @@ class Promise implements PromiseInterface {
 		}
 
 		try {
-			$result = $then->callOnResolved($this->resolvedValue)
-				?? $this->resolvedValue ?? null;
+			$result = null;
+			if(isset($this->resolvedValue)) {
+				$result = $then->callOnResolved($this->resolvedValue);
+			}
 
 			if($result instanceof PromiseInterface) {
 				$this->chainPromise($result);
@@ -197,8 +230,6 @@ class Promise implements PromiseInterface {
 
 	private function handleCatch(CatchChain $catch):?Throwable {
 		if($this->getState() !== PromiseState::REJECTED) {
-// TODO: This is where #52 can be implemented
-// see: (https://github.com/PhpGt/Promise/issues/52)
 			array_push($this->uncalledCatchChain, $catch);
 			return null;
 		}
