@@ -17,6 +17,7 @@ use RangeException;
 use RuntimeException;
 use stdClass;
 use Throwable;
+use TypeError;
 use ValueError;
 
 class PromiseTest extends TestCase {
@@ -901,5 +902,68 @@ class PromiseTest extends TestCase {
 		$mock->method("__invoke")
 			->will(self::throwException($exception));
 		return $mock;
+	}
+
+	/*
+	 * The functionality tested here is an important distinction in the PHP
+	 * implemnetation, because of the type safety PHP can enforce compared
+	 * to the JavaScript implementation. If there's a catch function, but
+	 * the type of exception does not match the actual rejection, the
+	 * rejection should be thrown to the main thread instead.
+	 */
+	public function testCatchRejectionHandlerIsNotCalledByTypeHintedOnRejectedCallback() {
+		$exception = new RangeException();
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$shouldNeverBeCalled = self::mockCallable(0);
+		self::expectException(RangeException::class);
+
+		$sut->catch(function(PromiseException $reason) use($shouldNeverBeCalled) {
+			call_user_func($shouldNeverBeCalled, $reason);
+		});
+
+		$promiseContainer->reject($exception);
+	}
+
+	public function testMatchingTypedCatchRejectionHandlerCanHandleInternalTypeErrors() {
+		$exception = new RangeException("No, Michael, no!");
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$onRejected1 = self::mockCallable(0);
+		$onRejected2 = self::mockCallable(0);
+
+		// There is a type error in the matching catch callback. This
+		// should bubble out of the chain rather than being seen as
+		// missing the RangeException type hint.
+		self::expectException(TypeError::class);
+		self::expectExceptionMessage("DateTime::__construct(): Argument #1 (\$datetime) must be of type string, Closure given");
+
+		$sut->catch(function(PromiseException $reason1) use($onRejected1) {
+			call_user_func($onRejected1, $reason1);
+		})
+		->catch(function(RangeException $reason2) use($onRejected2) {
+			new DateTime(fn() => "That was so not right!");
+			call_user_func($onRejected2, $reason2);
+		});
+		$promiseContainer->reject($exception);
+	}
+
+	public function testCatchRejectionHandlerIsCalledByAnotherMatchingTypeHintedOnRejectedCallback() {
+		$exception = new RangeException();
+		$promiseContainer = $this->getTestPromiseContainer();
+		$sut = $promiseContainer->getPromise();
+
+		$onRejected1 = self::mockCallable(0);
+		$onRejected2 = self::mockCallable(1);
+
+		$sut->catch(function(PromiseException $reason) use($onRejected1) {
+			call_user_func($onRejected1, $reason);
+		})->catch(function(RangeException $reason) use($onRejected2) {
+			call_user_func($onRejected2, $reason);
+		});
+
+		$promiseContainer->reject($exception);
 	}
 }
