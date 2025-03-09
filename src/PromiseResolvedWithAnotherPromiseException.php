@@ -9,7 +9,7 @@ class PromiseResolvedWithAnotherPromiseException extends PromiseException {
 	public function __construct(
 		string $message = "",
 		int $code = 0,
-		Throwable $previous = null
+		?Throwable $previous = null
 	) {
 		parent::__construct(
 			$message ?: self::DEFAULT_MESSAGE,

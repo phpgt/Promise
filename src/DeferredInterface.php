@@ -4,7 +4,7 @@ namespace Gt\Promise;
 use Throwable;
 
 interface DeferredInterface {
-	public function __construct(callable $process = null);
+	public function __construct(?callable $process = null);
 
 	/**
 	 * Returns the instance of the Promise that will be resolved/rejected
