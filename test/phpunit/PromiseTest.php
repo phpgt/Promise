@@ -215,7 +215,7 @@ class PromiseTest extends TestCase {
 			$concatMessages1 .= $message;
 
 			if($message === "STOP") {
-				return null;
+				return;
 			}
 
 			return "MORE";
@@ -233,7 +233,7 @@ class PromiseTest extends TestCase {
 			$concatMessages2 .= $message;
 
 			if($message === "STOP") {
-				return null;
+				return;
 			}
 
 			return "MORE";
@@ -398,11 +398,18 @@ class PromiseTest extends TestCase {
 		$expectedValue = "Don't break promises!";
 		$promiseContainer = $this->getTestPromiseContainer();
 
+		$thenCalls = [];
+
 		$sut = $promiseContainer->getPromise();
-		$sut->finally(fn() => "example123")
-			->then(self::mockCallable(1, $expectedValue));
+		$sut->finally(fn(string $resolvedValue) => "finally: $resolvedValue")
+			->then(function(string $resolvedValue) use(&$thenCalls) {
+				array_push($thenCalls, $resolvedValue);
+				return $resolvedValue;
+			});
 
 		$promiseContainer->resolve($expectedValue);
+		self::assertCount(1, $thenCalls);
+		self::assertSame($expectedValue, $thenCalls[0]);
 	}
 
 	public function testFinallyDoesNotBlockOnRejected() {

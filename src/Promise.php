@@ -219,6 +219,9 @@ class Promise implements PromiseInterface {
 			if($result instanceof PromiseInterface) {
 				$this->chainPromise($result);
 			}
+			elseif(is_null($result)) {
+				$this->reset();
+			}
 			else {
 				$this->resolve($result);
 			}
@@ -259,10 +262,10 @@ class Promise implements PromiseInterface {
 		$result = null;
 
 		if($this->getState() === PromiseState::RESOLVED) {
-			$result = $finally->callOnResolved($this->resolvedValue);
+			$result = $finally->callOnResolved($this->resolvedValue ?? null);
 		}
 		elseif($this->getState() === PromiseState::REJECTED) {
-			$result = $finally->callOnRejected($this->rejectedReason);
+			$result = $finally->callOnRejected($this->rejectedReason ?? null);
 		}
 
 		if($result instanceof PromiseInterface) {
