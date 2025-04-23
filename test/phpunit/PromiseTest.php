@@ -11,6 +11,7 @@ use Gt\Promise\PromiseResolvedWithAnotherPromiseException;
 use Gt\Promise\PromiseState;
 use Gt\Promise\PromiseWaitTaskNotSetException;
 use Gt\Promise\Test\Helper\CustomPromise;
+use Gt\Promise\Test\Helper\MockCallable;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RangeException;
@@ -879,8 +880,8 @@ class PromiseTest extends TestCase {
 		...$expectedParameters
 	):MockObject {
 		$mock = self::getMockBuilder(
-			stdClass::class
-		)->addMethods([
+			MockCallable::class
+		)->onlyMethods([
 			"__invoke"
 		])->getMock();
 

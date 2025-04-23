@@ -15,9 +15,9 @@ class TestPromiseContainer {
 
 	public function __construct(
 		PromiseInterface $promise,
-		callable $resolve = null,
-		callable $reject = null,
-		callable $complete = null
+		?callable $resolve = null,
+		?callable $reject = null,
+		?callable $complete = null
 	) {
 		$this->promise = $promise;
 		$this->resolve = $resolve;

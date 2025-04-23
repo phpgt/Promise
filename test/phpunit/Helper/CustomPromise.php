@@ -18,8 +18,8 @@ class CustomPromise {
 	private $onRejected;
 
 	public function then(
-		callable $onResolved = null,
-		callable $onRejected = null,
+		?callable $onResolved = null,
+		?callable $onRejected = null,
 	):?PromiseInterface {
 		$newDeferred = new Deferred();
 		$newPromise = $newDeferred->getPromise();
