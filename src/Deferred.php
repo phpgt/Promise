@@ -17,7 +17,7 @@ class Deferred implements DeferredInterface {
 	private array $deferredCompleteCallback;
 	private bool $activated;
 
-	public function __construct(callable $process = null) {
+	public function __construct(?callable $process = null) {
 		$this->promise = new Promise(function($resolve, $reject, $complete):void {
 			$this->resolveCallback = $resolve;
 			$this->rejectCallback = $reject;

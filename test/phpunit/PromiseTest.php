@@ -46,7 +46,6 @@ class PromiseTest extends TestCase {
 		$promiseContainer->resolve($value);
 	}
 
-
 	public function testPromiseRejectsIfResolvedWithItself() {
 		$actualMessage = null;
 
