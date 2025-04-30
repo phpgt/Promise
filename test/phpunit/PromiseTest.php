@@ -460,14 +460,18 @@ class PromiseTest extends TestCase {
 		$sut = $promiseContainer->getPromise();
 		$sut->finally(function(mixed $resolvedValueOrRejectedReason) use($otherPromise, &$finallyLog) {
 			array_push($finallyLog, $resolvedValueOrRejectedReason);
+			return "First return";
+		})->finally(function(mixed $resolvedValueOrRejectedReason) use($otherPromise, &$finallyLog) {
+			array_push($finallyLog, $resolvedValueOrRejectedReason);
 			return $otherPromise;
 		})->finally(function(mixed $resolvedValueOrRejectedReason) use($otherPromise, &$finallyLog) {
 			array_push($finallyLog, $resolvedValueOrRejectedReason);
 		});
+
 		$promiseContainer->resolve("test");
 		self::assertCount(2, $finallyLog);
 		self::assertSame("test", $finallyLog[0]);
-		self::assertNull($finallyLog[1]);
+		self::assertSame("First return", $finallyLog[1]);
 	}
 
 	public function testOnRejectedCalledWhenFinallyThrows() {

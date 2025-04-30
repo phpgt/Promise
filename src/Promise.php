@@ -135,8 +135,8 @@ class Promise implements PromiseInterface {
 		usort(
 			$this->chain,
 			function(Chainable $a, Chainable $b) {
-				if($a instanceof FinallyChain) return 1;
-				if($b instanceof FinallyChain) return -1;
+				if($a instanceof FinallyChain && !($b instanceof FinallyChain)) return 1;
+				if($b instanceof FinallyChain && !($a instanceof FinallyChain)) return -1;
 				return 0;
 			}
 		);
@@ -145,7 +145,7 @@ class Promise implements PromiseInterface {
 			$chainItem = $this->getNextChainItem();
 			if (!$chainItem) break;
 
-			if ($chainItem instanceof ThenChain) {
+			if ($chainItem instanceof ThenChain || $chainItem instanceof FinallyChain) {
 				try {
 					if($this->resolvedValueSet && isset($this->resolvedValue)) {
 						$chainItem->checkResolutionCallbackType($this->resolvedValue);
@@ -155,8 +155,15 @@ class Promise implements PromiseInterface {
 					continue;
 				}
 
-				if ($this->handleThen($chainItem)) {
-					$this->emptyChain();
+				if($chainItem instanceof ThenChain) {
+					if ($this->handleThen($chainItem)) {
+						$this->emptyChain();
+					}
+				}
+				elseif($chainItem instanceof FinallyChain) {
+					if($this->handleFinally($chainItem)) {
+						$this->emptyChain();
+					}
 				}
 			}
 			elseif ($chainItem instanceof CatchChain) {
@@ -172,9 +179,9 @@ class Promise implements PromiseInterface {
 					continue;
 				}
 			}
-			elseif ($chainItem instanceof FinallyChain) {
-				$this->handleFinally($chainItem);
-			}
+//			elseif ($chainItem instanceof FinallyChain) {
+//				$this->handleFinally($chainItem);
+//			}
 		}
 
 		$this->throwUnhandledRejection();
@@ -210,6 +217,51 @@ class Promise implements PromiseInterface {
 		return false;
 	}
 
+	private function handleFinally(FinallyChain $finally):bool {
+		if($this->getState() === PromiseState::RESOLVED) {
+			try {
+				$result = $finally->callOnResolved($this->resolvedValue);
+				if($result instanceof PromiseInterface) {
+					$this->chainPromise($result);
+				}
+				elseif(is_null($result)) {
+					$this->stopChain = true;
+					return true;
+				}
+				else {
+					$this->resolvedValue = $result;
+					$this->resolvedValueSet = true;
+					$this->tryComplete();
+				}
+			}
+			catch(Throwable $reason) {
+				$this->reject($reason);
+			}
+		}
+		elseif($this->getState() === PromiseState::REJECTED) {
+			try {
+				$result = $finally->callOnRejected($this->rejectedReason);
+				if($result instanceof PromiseInterface) {
+					$this->chainPromise($result);
+				}
+				elseif(is_null($result)) {
+					$this->stopChain = true;
+					return true;
+				}
+				else {
+					$this->resolvedValue = $result;
+					$this->resolvedValueSet = true;
+					$this->tryComplete();
+				}
+			}
+			catch(Throwable $reason) {
+				$this->reject($reason);
+			}
+		}
+
+		return false;
+	}
+
 	private function handleCatch(CatchChain $catch):?Throwable {
 		if($this->getState() !== PromiseState::REJECTED) {
 			array_push($this->uncalledCatchChain, $catch);
@@ -233,22 +285,6 @@ class Promise implements PromiseInterface {
 		return null;
 	}
 
-	private function handleFinally(FinallyChain $finally):void {
-		$result = null;
-		if($this->getState() === PromiseState::RESOLVED) {
-			$result = $finally->callOnResolved($this->resolvedValue ?? null);
-		}
-		elseif($this->getState() === PromiseState::REJECTED) {
-			$result = $finally->callOnRejected($this->rejectedReason ?? null);
-		}
-		if($result instanceof PromiseInterface) {
-			$this->chainPromise($result);
-		}
-		else {
-			$this->resolve($result);
-		}
-	}
-
 	protected function throwUnhandledRejection():void {
 		if($this->getState() === PromiseState::REJECTED) {
 			if(!in_array($this->rejectedReason, $this->handledRejections)) {
@@ -258,7 +294,10 @@ class Promise implements PromiseInterface {
 	}
 
 	protected function emptyChain():void {
-		$this->resolvedValue = $this->originalResolvedValue;
+		if(isset($this->originalResolvedValue)) {
+			$this->resolvedValue = $this->originalResolvedValue;
+		}
+
 		$this->chain = [];
 	}
 }
