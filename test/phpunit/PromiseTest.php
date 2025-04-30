@@ -474,20 +474,23 @@ class PromiseTest extends TestCase {
 		self::assertSame("First return", $finallyLog[1]);
 	}
 
-	public function testOnRejectedCalledWhenFinallyThrows() {
+	public function testOnRejectedNotCalledWhenFinallyThrows() {
 		$exception = new PromiseException("Oh dear, oh dear");
+		$actualException = null;
 		$promiseContainer = $this->getTestPromiseContainer();
 
 		self::expectException(PromiseException::class);
 		self::expectExceptionMessage("Oh dear, oh dear");
 		$sut = $promiseContainer->getPromise();
-		$sut->finally(function() use ($exception) {
+		$sut->finally(function(string $message) use ($exception) {
 			throw $exception;
-		})->then(
-			self::mockCallable(1, "Example resolution"),
-			self::mockCallable(0)
-		);
+		})->then(function(string $message) {
+			return "$message-appended";
+		})->catch(function(Throwable $reason) use(&$actualException) {
+			$actualException = $reason;
+		});
 		$promiseContainer->resolve("Example resolution");
+		self::assertNull($actualException);
 	}
 
 	public function testGetStatePending() {

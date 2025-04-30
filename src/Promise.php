@@ -219,43 +219,34 @@ class Promise implements PromiseInterface {
 
 	private function handleFinally(FinallyChain $finally):bool {
 		if($this->getState() === PromiseState::RESOLVED) {
-			try {
-				$result = $finally->callOnResolved($this->resolvedValue);
-				if($result instanceof PromiseInterface) {
-					$this->chainPromise($result);
-				}
-				elseif(is_null($result)) {
-					$this->stopChain = true;
-					return true;
-				}
-				else {
-					$this->resolvedValue = $result;
-					$this->resolvedValueSet = true;
-					$this->tryComplete();
-				}
+			$result = $finally->callOnResolved($this->resolvedValue);
+			if($result instanceof PromiseInterface) {
+				$this->chainPromise($result);
 			}
-			catch(Throwable $reason) {
-				$this->reject($reason);
+			elseif(is_null($result)) {
+				$this->stopChain = true;
+				return true;
 			}
+			else {
+				$this->resolvedValue = $result;
+				$this->resolvedValueSet = true;
+				$this->tryComplete();
+			}
+
 		}
 		elseif($this->getState() === PromiseState::REJECTED) {
-			try {
-				$result = $finally->callOnRejected($this->rejectedReason);
-				if($result instanceof PromiseInterface) {
-					$this->chainPromise($result);
-				}
-				elseif(is_null($result)) {
-					$this->stopChain = true;
-					return true;
-				}
-				else {
-					$this->resolvedValue = $result;
-					$this->resolvedValueSet = true;
-					$this->tryComplete();
-				}
+			$result = $finally->callOnRejected($this->rejectedReason);
+			if($result instanceof PromiseInterface) {
+				$this->chainPromise($result);
 			}
-			catch(Throwable $reason) {
-				$this->reject($reason);
+			elseif(is_null($result)) {
+				$this->stopChain = true;
+				return true;
+			}
+			else {
+				$this->resolvedValue = $result;
+				$this->resolvedValueSet = true;
+				$this->tryComplete();
 			}
 		}
 
