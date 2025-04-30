@@ -489,6 +489,9 @@ class PromiseTest extends TestCase {
 		})->catch(function(Throwable $reason) use(&$actualException) {
 			$actualException = $reason;
 		});
+
+		self::expectException(PromiseException::class);
+		self::expectExceptionMessage("Oh dear, oh dear");
 		$promiseContainer->resolve("Example resolution");
 		self::assertNull($actualException);
 	}
