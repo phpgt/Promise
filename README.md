@@ -5,7 +5,7 @@ There are many implementations of the concept of a `Promise`. This library aims 
 
 ***
 
-<a href="https://github.com/PhpGt/Promise/actions" target="_blank">
+<a href="https://github.com/phpgt/Promise/actions" target="_blank">
 	<img src="https://badge.status.php.gt/promise-build.svg" alt="Build status" />
 </a>
 <a href="https://app.codacy.com/gh/PhpGt/Promise" target="_blank">
@@ -18,14 +18,14 @@ There are many implementations of the concept of a `Promise`. This library aims 
 	<img src="https://badge.status.php.gt/promise-version.svg" alt="Current version" />
 </a>
 <a href="http://www.php.gt/promise" target="_blank">
-	<img src="https://badge.status.php.gt/promise-docs.svg" alt="PHP.Gt/Promise documentation" />
+	<img src="https://badge.status.php.gt/promise-docs.svg" alt="PHP.GT/Promise documentation" />
 </a>
 
 In computer science, a `Promise` is a mechanism that provides a simple and direct relationship between procedural code and asynchronous callbacks. Functions within procedural languages, like plain old PHP, have two ways they can affect your program's flow: either by returning values or throwing exceptions.
 
 When working with functions that execute asynchronously, we can't return values because they might not be ready yet, and we can't throw exceptions because that's a procedural concept (where should we catch them?). That's where promises come in: instead of returning a value or throwing an exception, your functions can return a `Promise`, which is an object that can be _fulfilled_ with a value, or _rejected_ with an exception, but not necessarily at the point that they are returned.
 
-With this concept, the actual work that calculates or loads the value required by your code can be _deferred_ to a task that executes asynchronously. Behind the scenes of PHP.Gt/Promise is a `Deferred` class that is used for exactly this.
+With this concept, the actual work that calculates or loads the value required by your code can be _deferred_ to a task that executes asynchronously. Behind the scenes of PHP.GT/Promise is a `Deferred` class that is used for exactly this.
 
 Example usage
 -------------
@@ -120,7 +120,7 @@ Event loop
 
 In order for this Promise library to be useful, some code has got to act as an event loop to call the deferred processes. This could be a simple while loop, but for real world tasks a more comprehensive loop system should be used.
 
-The implementation of a Promise-based architecture is complex enough on its own, so the responsibility of an event loop library is maintained separately in [PHP.Gt/Async][gt-async].
+The implementation of a Promise-based architecture is complex enough on its own, so the responsibility of an event loop library is maintained separately in [PHP.GT/Async][gt-async].
 
 Special thanks
 --------------

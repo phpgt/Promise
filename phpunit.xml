@@ -5,7 +5,6 @@
 	colors="true"
 	cacheDirectory="test/phpunit/.phpunit.cache"
 	bootstrap="vendor/autoload.php"
-	displayDetailsOnTestsThatTriggerDeprecations="true"
 >
 	<coverage />
 

@@ -460,30 +460,40 @@ class PromiseTest extends TestCase {
 		$sut = $promiseContainer->getPromise();
 		$sut->finally(function(mixed $resolvedValueOrRejectedReason) use($otherPromise, &$finallyLog) {
 			array_push($finallyLog, $resolvedValueOrRejectedReason);
+			return "First return";
+		})->finally(function(mixed $resolvedValueOrRejectedReason) use($otherPromise, &$finallyLog) {
+			array_push($finallyLog, $resolvedValueOrRejectedReason);
 			return $otherPromise;
 		})->finally(function(mixed $resolvedValueOrRejectedReason) use($otherPromise, &$finallyLog) {
 			array_push($finallyLog, $resolvedValueOrRejectedReason);
 		});
+
 		$promiseContainer->resolve("test");
 		self::assertCount(2, $finallyLog);
 		self::assertSame("test", $finallyLog[0]);
-		self::assertNull($finallyLog[1]);
+		self::assertSame("First return", $finallyLog[1]);
 	}
 
-	public function testOnRejectedCalledWhenFinallyThrows() {
+	public function testOnRejectedNotCalledWhenFinallyThrows() {
 		$exception = new PromiseException("Oh dear, oh dear");
+		$actualException = null;
 		$promiseContainer = $this->getTestPromiseContainer();
 
 		self::expectException(PromiseException::class);
 		self::expectExceptionMessage("Oh dear, oh dear");
 		$sut = $promiseContainer->getPromise();
-		$sut->finally(function() use ($exception) {
+		$sut->finally(function(string $message) use ($exception) {
 			throw $exception;
-		})->then(
-			self::mockCallable(1, "Example resolution"),
-			self::mockCallable(0)
-		);
+		})->then(function(string $message) {
+			return "$message-appended";
+		})->catch(function(Throwable $reason) use(&$actualException) {
+			$actualException = $reason;
+		});
+
+		self::expectException(PromiseException::class);
+		self::expectExceptionMessage("Oh dear, oh dear");
 		$promiseContainer->resolve("Example resolution");
+		self::assertNull($actualException);
 	}
 
 	public function testGetStatePending() {
