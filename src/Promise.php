@@ -179,9 +179,6 @@ class Promise implements PromiseInterface {
 					continue;
 				}
 			}
-//			elseif ($chainItem instanceof FinallyChain) {
-//				$this->handleFinally($chainItem);
-//			}
 		}
 
 		$this->throwUnhandledRejection();
@@ -195,20 +192,10 @@ class Promise implements PromiseInterface {
 		if($this->getState() !== PromiseState::RESOLVED) {
 			return false;
 		}
+
 		try {
 			$result = $then->callOnResolved($this->resolvedValue);
-			if($result instanceof PromiseInterface) {
-				$this->chainPromise($result);
-			}
-			elseif(is_null($result)) {
-				$this->stopChain = true;
-				return true;
-			}
-			else {
-				$this->resolvedValue = $result;
-				$this->resolvedValueSet = true;
-				$this->tryComplete();
-			}
+			return $this->handleResolvedResult($result);
 		}
 		catch(Throwable $rejection) {
 			$this->reject($rejection);
@@ -220,34 +207,28 @@ class Promise implements PromiseInterface {
 	private function handleFinally(FinallyChain $finally):bool {
 		if($this->getState() === PromiseState::RESOLVED) {
 			$result = $finally->callOnResolved($this->resolvedValue);
-			if($result instanceof PromiseInterface) {
-				$this->chainPromise($result);
-			}
-			elseif(is_null($result)) {
-				$this->stopChain = true;
-				return true;
-			}
-			else {
-				$this->resolvedValue = $result;
-				$this->resolvedValueSet = true;
-				$this->tryComplete();
-			}
-
+			return $this->handleResolvedResult($result);
 		}
 		elseif($this->getState() === PromiseState::REJECTED) {
 			$result = $finally->callOnRejected($this->rejectedReason);
-			if($result instanceof PromiseInterface) {
-				$this->chainPromise($result);
-			}
-			elseif(is_null($result)) {
-				$this->stopChain = true;
-				return true;
-			}
-			else {
-				$this->resolvedValue = $result;
-				$this->resolvedValueSet = true;
-				$this->tryComplete();
-			}
+			return $this->handleResolvedResult($result);
+		}
+
+		return false;
+	}
+
+	private function handleResolvedResult(mixed $result):bool {
+		if($result instanceof PromiseInterface) {
+			$this->chainPromise($result);
+		}
+		elseif(is_null($result)) {
+			$this->stopChain = true;
+			return true;
+		}
+		else {
+			$this->resolvedValue = $result;
+			$this->resolvedValueSet = true;
+			$this->tryComplete();
 		}
 
 		return false;
