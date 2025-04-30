@@ -90,7 +90,7 @@ class Promise implements PromiseInterface {
 	}
 
 	private function resolve(mixed $value):void {
-		if($this->getState() !== PromiseState::PENDING) {
+		if($this->getState() === PromiseState::RESOLVED) {
 			return;
 		}
 		$this->reset();
