@@ -9,21 +9,23 @@ use Gt\Promise\Chain\ThenChain;
 use Throwable;
 
 class Promise implements PromiseInterface {
+	use ExecutesPromiseChain;
+
 	private bool $resolvedValueSet = false;
 	private bool $stopChain = false;
 
 	private mixed $resolvedValue;
 	private mixed $originalResolvedValue;
 	private Throwable $rejectedReason;
+	/** @var array<Chainable> */
 	private array $chain;
-	private array $uncalledCatchChain;
+	/** @var array<Throwable> */
 	private array $handledRejections;
 	/** @var callable */
 	private $executor;
 
 	public function __construct(callable $executor) {
 		$this->chain = [];
-		$this->uncalledCatchChain = [];
 		$this->handledRejections = [];
 		$this->executor = $executor;
 		$this->callExecutor();
@@ -131,64 +133,11 @@ class Promise implements PromiseInterface {
 		}
 	}
 
-	private function complete():void {
-		usort(
-			$this->chain,
-			function(Chainable $a, Chainable $b) {
-				if($a instanceof FinallyChain && !($b instanceof FinallyChain)) return 1;
-				if($b instanceof FinallyChain && !($a instanceof FinallyChain)) return -1;
-				return 0;
-			}
-		);
-
-		while ($this->getState() !== PromiseState::PENDING) {
-			$chainItem = $this->getNextChainItem();
-			if (!$chainItem) break;
-
-			if ($chainItem instanceof ThenChain || $chainItem instanceof FinallyChain) {
-				try {
-					if($this->resolvedValueSet && isset($this->resolvedValue)) {
-						$chainItem->checkResolutionCallbackType($this->resolvedValue);
-					}
-				}
-				catch (ChainFunctionTypeError) {
-					continue;
-				}
-
-				if($chainItem instanceof ThenChain) {
-					if ($this->handleThen($chainItem)) {
-						$this->emptyChain();
-					}
-				}
-				elseif($chainItem instanceof FinallyChain) {
-					if($this->handleFinally($chainItem)) {
-						$this->emptyChain();
-					}
-				}
-			}
-			elseif ($chainItem instanceof CatchChain) {
-				try {
-					if (isset($this->rejectedReason)) {
-						$chainItem->checkRejectionCallbackType($this->rejectedReason);
-					}
-					if ($handled = $this->handleCatch($chainItem)) {
-						array_push($this->handledRejections, $handled);
-					}
-				}
-				catch (ChainFunctionTypeError) {
-					continue;
-				}
-			}
-		}
-
-		$this->throwUnhandledRejection();
-	}
-
 	private function getNextChainItem():?Chainable {
 		return array_shift($this->chain);
 	}
 
-	private function handleThen(ThenChain $then):bool {
+	protected function handleThen(ThenChain $then):bool {
 		if($this->getState() !== PromiseState::RESOLVED) {
 			return false;
 		}
@@ -204,7 +153,7 @@ class Promise implements PromiseInterface {
 		return false;
 	}
 
-	private function handleFinally(FinallyChain $finally):bool {
+	protected function handleFinally(FinallyChain $finally):bool {
 		if($this->getState() === PromiseState::RESOLVED) {
 			$result = $finally->callOnResolved($this->resolvedValue);
 			return $this->handleResolvedResult($result);
@@ -234,9 +183,8 @@ class Promise implements PromiseInterface {
 		return false;
 	}
 
-	private function handleCatch(CatchChain $catch):?Throwable {
+	protected function handleCatch(CatchChain $catch):?Throwable {
 		if($this->getState() !== PromiseState::REJECTED) {
-			array_push($this->uncalledCatchChain, $catch);
 			return null;
 		}
 		try {
