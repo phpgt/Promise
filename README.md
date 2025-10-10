@@ -131,3 +131,9 @@ The work put into the development of this repository is mainly thanks to the gre
 [gt-async]: https://php.gt/async 
 [reactphp-promise]: https://github.com/reactphp/promise
 [domenic-denicola-blog]: https://blog.domenic.me/youre-missing-the-point-of-promises/
+
+# Proudly sponsored by
+
+[JetBrains Open Source sponsorship program](https://www.jetbrains.com/community/opensource/)
+
+[![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://www.jetbrains.com/community/opensource/)
