@@ -1,8 +1,8 @@
 <?php
-namespace Gt\Promise\Test;
+namespace GT\Promise\Test;
 
 use Exception;
-use Gt\Promise\Deferred;
+use GT\Promise\Deferred;
 use PHPUnit\Framework\TestCase;
 
 class DeferredTest extends TestCase {

@@ -1,6 +1,6 @@
 <?php
-namespace Gt\Promise\Chain;
+namespace GT\Promise\Chain;
 
-use Gt\Promise\PromiseException;
+use GT\Promise\PromiseException;
 
 class ChainFunctionTypeError extends PromiseException {}

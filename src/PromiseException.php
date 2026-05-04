@@ -1,5 +1,5 @@
 <?php
-namespace Gt\Promise;
+namespace GT\Promise;
 
 use RuntimeException;
 

@@ -1,11 +1,11 @@
 <?php
-namespace Gt\Promise;
+namespace GT\Promise;
 
-use Gt\Promise\Chain\CatchChain;
-use Gt\Promise\Chain\Chainable;
-use Gt\Promise\Chain\ChainFunctionTypeError;
-use Gt\Promise\Chain\FinallyChain;
-use Gt\Promise\Chain\ThenChain;
+use GT\Promise\Chain\CatchChain;
+use GT\Promise\Chain\Chainable;
+use GT\Promise\Chain\ChainFunctionTypeError;
+use GT\Promise\Chain\FinallyChain;
+use GT\Promise\Chain\ThenChain;
 use Throwable;
 
 class Promise implements PromiseInterface {

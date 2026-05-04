@@ -1,17 +1,17 @@
 <?php
-namespace Gt\Promise\Test;
+namespace GT\Promise\Test;
 
 use ArithmeticError;
 use DateTime;
 use Exception;
-use Gt\Promise\Deferred;
-use Gt\Promise\Promise;
-use Gt\Promise\PromiseException;
-use Gt\Promise\PromiseResolvedWithAnotherPromiseException;
-use Gt\Promise\PromiseState;
-use Gt\Promise\PromiseWaitTaskNotSetException;
-use Gt\Promise\Test\Helper\CustomPromise;
-use Gt\Promise\Test\Helper\MockCallable;
+use GT\Promise\Deferred;
+use GT\Promise\Promise;
+use GT\Promise\PromiseException;
+use GT\Promise\PromiseResolvedWithAnotherPromiseException;
+use GT\Promise\PromiseState;
+use GT\Promise\PromiseWaitTaskNotSetException;
+use GT\Promise\Test\Helper\CustomPromise;
+use GT\Promise\Test\Helper\MockCallable;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RangeException;
