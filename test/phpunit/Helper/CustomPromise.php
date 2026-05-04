@@ -1,10 +1,10 @@
 <?php
-namespace Gt\Promise\Test\Helper;
+namespace GT\Promise\Test\Helper;
 
 use Exception;
-use Gt\Promise\Deferred;
-use Gt\Promise\PromiseInterface;
-use Gt\Promise\PromiseState;
+use GT\Promise\Deferred;
+use GT\Promise\PromiseInterface;
+use GT\Promise\PromiseState;
 use RuntimeException;
 use Throwable;
 

@@ -15,11 +15,13 @@
 
 	"autoload": {
 		"psr-4": {
+			"GT\\Promise\\": "./src",
 			"Gt\\Promise\\": "./src"
 		}
 	},
 	"autoload-dev": {
 		"psr-4": {
+			"GT\\Promise\\Test\\": "./test/phpunit",
 			"Gt\\Promise\\Test\\": "./test/phpunit"
 		}
 	},

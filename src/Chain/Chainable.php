@@ -1,5 +1,5 @@
 <?php
-namespace Gt\Promise\Chain;
+namespace GT\Promise\Chain;
 
 use Closure;
 use ReflectionFunction;

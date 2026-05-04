@@ -1,5 +1,5 @@
 <?php
-namespace Gt\Promise\Chain;
+namespace GT\Promise\Chain;
 
 class ThenChain extends Chainable {
 }

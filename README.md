@@ -3,6 +3,18 @@ A pleasant way to work with asynchronous PHP.
 
 There are many implementations of the concept of a `Promise`. This library aims to be compatible with the [Web API's Promise implementation][mdn-promise], providing a `then`, `catch` and `finally` mechanism that behave the same as when working with promises in the web browser.
 
+Namespace
+---------
+
+This package now uses the capitalised `GT\Promise\...` namespace prefix for its own classes.
+
+```php
+use GT\Promise\Deferred;
+use GT\Promise\PromiseInterface;
+```
+
+For backward compatibility, Composer still autoloads the legacy `Gt\Promise\...` prefix so dependent libraries can migrate later without breaking.
+
 ***
 
 <a href="https://github.com/phpgt/Promise/actions" target="_blank">

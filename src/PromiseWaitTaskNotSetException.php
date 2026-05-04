@@ -1,4 +1,4 @@
 <?php
-namespace Gt\Promise;
+namespace GT\Promise;
 
 class PromiseWaitTaskNotSetException extends PromiseException {}
