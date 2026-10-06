@@ -56,8 +56,8 @@ abstract class Chainable {
 	}
 
 	/**
-	 * @SuppressWarnings(PHPMD.CyclomaticComplexity)
-	 * @SuppressWarnings(PHPMD.NPathComplexity)
+	 * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+	 * @SuppressWarnings("PHPMD.NPathComplexity")
 	 */
 	// phpcs:ignore
 	private function checkType(mixed $value, callable $callable):void {

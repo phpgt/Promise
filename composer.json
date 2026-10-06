@@ -7,7 +7,7 @@
 		"php": ">=8.3"
 	},
 	"require-dev": {
-		"phpstan/phpstan": "^1.10",
+		"phpstan/phpstan": "^2.2",
 		"phpunit/phpunit": "^12.1",
 		"phpmd/phpmd": "^2.13",
 		"squizlabs/php_codesniffer": "^4.0"
@@ -21,8 +21,7 @@
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"GT\\Promise\\Test\\": "./test/phpunit",
-			"Gt\\Promise\\Test\\": "./test/phpunit"
+			"GT\\Promise\\Test\\": "./test/phpunit"
 		}
 	},
 	"keywords": [
