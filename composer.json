@@ -21,8 +21,7 @@
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"GT\\Promise\\Test\\": "./test/phpunit",
-			"Gt\\Promise\\Test\\": "./test/phpunit"
+			"GT\\Promise\\Test\\": "./test/phpunit"
 		}
 	},
 	"keywords": [
